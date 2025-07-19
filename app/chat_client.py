@@ -13,10 +13,18 @@ class ChatClient:
 
     def get_chat_completion(self, messages):
         """Gets a chat completion from the OpenAI API."""
+        api_messages = []
+        for message in messages:
+            if message["role"] == "bot":
+                api_messages.append(
+                    {"role": "assistant", "content": message["content"]}
+                )
+            else:
+                api_messages.append(message)
         try:
             response = self.client.chat.completions.create(
                 model="gpt-3.5-turbo",
-                messages=messages,
+                messages=api_messages,
             )
             return response.choices[0].message.content
         except Exception as e:
