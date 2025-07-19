@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, request, session, redirect, url_for
+from flask import Blueprint, render_template, request, session, jsonify
 from app.chat_client import ChatClient
 
 bp = Blueprint("routes", __name__)
@@ -16,16 +16,18 @@ def index():
 @bp.route("/chat", methods=["POST"])
 def chat():
     """Handles chat submissions."""
-    query = request.form.get("query")
-    if query:
-        # Add user query to conversation
-        session["conversation"].append({"role": "user", "content": query})
+    query = request.json.get("query")
+    if not query:
+        return jsonify({"error": "Query is required"}), 400
 
-        # Get bot response
-        bot_response = chat_client.get_chat_completion(session["conversation"])
-        session["conversation"].append({"role": "assistant", "content": bot_response})
+    # Add user query to conversation
+    session["conversation"].append({"role": "user", "content": query})
 
-        # Ensure session is saved
-        session.modified = True
+    # Get bot response
+    bot_response = chat_client.get_chat_completion(session["conversation"])
+    session["conversation"].append({"role": "assistant", "content": bot_response})
 
-    return redirect(url_for("routes.index"))
+    # Ensure session is saved
+    session.modified = True
+
+    return jsonify({"response": bot_response})
