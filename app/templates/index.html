@@ -8,17 +8,52 @@
 </head>
 <body>
     <div class="chat-container">
-        <div class="chat-history">
+        <div class="chat-history" id="chat-history">
             {% for message in conversation %}
                 <div class="message {{ 'user' if message.role == 'user' else 'bot' if message.role == 'assistant' else '' }}">
                     {{ message.content }}
                 </div>
             {% endfor %}
         </div>
-        <form class="chat-input" method="post" action="{{ url_for('routes.chat') }}">
-            <input type="text" name="query" placeholder="Type your message..." autocomplete="off" autofocus>
+        <form class="chat-input" id="chat-form" method="post" action="{{ url_for('routes.chat') }}">
+            <input type="text" name="query" id="chat-input-field" placeholder="Type your message..." autocomplete="off" autofocus>
             <button type="submit">Send</button>
         </form>
     </div>
+    <script>
+        const chatHistory = document.getElementById('chat-history');
+        const chatForm = document.getElementById('chat-form');
+        const inputField = document.getElementById('chat-input-field');
+
+        function scrollToBottom() {
+            chatHistory.scrollTop = chatHistory.scrollHeight;
+        }
+
+        // Scroll to bottom on page load
+        scrollToBottom();
+
+        chatForm.addEventListener('submit', function(event) {
+            const query = inputField.value.trim();
+            if (query) {
+                // Add user message to history
+                const userMessage = document.createElement('div');
+                userMessage.className = 'message user';
+                userMessage.textContent = query;
+                chatHistory.appendChild(userMessage);
+
+                // Add loading indicator
+                const loadingIndicator = document.createElement('div');
+                loadingIndicator.className = 'message bot loading';
+                loadingIndicator.innerHTML = '<span>.</span><span>.</span><span>.</span>';
+                chatHistory.appendChild(loadingIndicator);
+
+                // Scroll to bottom
+                scrollToBottom();
+
+                // Clear input field
+                inputField.value = '';
+            }
+        });
+    </script>
 </body>
 </html>
