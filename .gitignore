@@ -9,3 +9,6 @@ wheels/
 # Virtual environments
 .venv
 flask.log
+
+.env
+.spotify_cache/
