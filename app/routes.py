@@ -1,4 +1,5 @@
 import os
+import uuid
 from flask import (
     Blueprint,
     render_template,
@@ -47,8 +48,10 @@ def index():
 @bp.route("/spotify/login")
 def spotify_login():
     """Redirects to Spotify for authentication."""
+    if "spotify_cache_id" not in session:
+        session["spotify_cache_id"] = str(uuid.uuid4())
     # Use a unique cache path for each user's session
-    session["spotify_cache_path"] = f".spotify_cache/{session.sid}"
+    session["spotify_cache_path"] = f".spotify_cache/{session['spotify_cache_id']}"
     auth_manager = get_spotify_auth_manager()
     return redirect(auth_manager.get_authorize_url())
 
