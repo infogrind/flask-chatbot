@@ -1,4 +1,3 @@
-import json
 import os
 from openai import OpenAI
 
@@ -41,25 +40,10 @@ class ChatClient:
             )
             response_message = response.choices[0].message
 
-            tool_calls = response_message.tool_calls
-            if tool_calls:
-                results = {"tool_calls": []}
-                for tool_call in tool_calls:
-                    function_name = tool_call.function.name
-                    if function_name in available_tools:
-                        function_to_call = available_tools[function_name]
-                        function_args = json.loads(tool_call.function.arguments)
-                        function_response = function_to_call(**function_args)
-                        results["tool_calls"].append(
-                            {
-                                "id": tool_call.id,
-                                "name": function_name,
-                                "result": function_response,
-                            }
-                        )
-                return results
-
-            return response_message.content
+            if response_message.tool_calls:
+                return response_message
+            else:
+                return response_message.content
         except Exception as e:
             print(f"An error occurred: {e}")
             return "I'm sorry, I'm having trouble connecting to the chat service."

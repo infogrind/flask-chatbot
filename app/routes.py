@@ -81,36 +81,27 @@ def chat():
     available_tools = {"get_my_playlists": spotify_client.get_user_playlists}
 
     # Get bot response, potentially with tool calls
-    response = chat_client.get_chat_completion(
-        session["conversation"], available_tools=available_tools
-    )
+    response_message = chat_client.get_chat_completion(session["conversation"])
 
-    if isinstance(response, dict) and "tool_calls" in response:
+    if hasattr(response_message, "tool_calls") and response_message.tool_calls:
         # The model wants to call tools.
-        # First, add the assistant's message with tool calls to the history
-        assistant_message = {
-            "role": "assistant",
-            "content": None,
-            "tool_calls": [
-                {
-                    "id": tc["id"],
-                    "type": "function",
-                    "function": {"name": tc["name"], "arguments": "{}"},
-                }
-                for tc in response["tool_calls"]
-            ],
-        }
-        session["conversation"].append(assistant_message)
+        session["conversation"].append(response_message)
 
-        # Then, add the results of the tool calls to the history
-        for tool_call in response["tool_calls"]:
-            tool_message = {
-                "role": "tool",
-                "tool_call_id": tool_call["id"],
-                "name": tool_call["name"],
-                "content": json.dumps(tool_call["result"]),
-            }
-            session["conversation"].append(tool_message)
+        # Execute the tool calls and add the results to the history
+        for tool_call in response_message.tool_calls:
+            function_name = tool_call.function.name
+            if function_name in available_tools:
+                function_to_call = available_tools[function_name]
+                function_args = json.loads(tool_call.function.arguments)
+                function_response = function_to_call(**function_args)
+                session["conversation"].append(
+                    {
+                        "role": "tool",
+                        "tool_call_id": tool_call.id,
+                        "name": function_name,
+                        "content": json.dumps(function_response),
+                    }
+                )
 
         # Now, get the final response from the model
         final_response = chat_client.get_chat_completion(session["conversation"])
@@ -118,8 +109,10 @@ def chat():
         bot_response = final_response
     else:
         # This is a direct response
-        session["conversation"].append({"role": "assistant", "content": response})
-        bot_response = response
+        session["conversation"].append(
+            {"role": "assistant", "content": response_message}
+        )
+        bot_response = response_message
 
     session.modified = True
     return jsonify({"response": bot_response})
