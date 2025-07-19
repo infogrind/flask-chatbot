@@ -10,7 +10,7 @@
     <div class="chat-container">
         <div class="chat-history">
             {% for message in conversation %}
-                <div class="message {{ 'user' if message.role == 'user' else 'bot' }}">
+                <div class="message {{ 'user' if message.role == 'user' else 'bot' if message.role == 'assistant' else '' }}">
                     {{ message.content }}
                 </div>
             {% endfor %}

@@ -1,6 +1,8 @@
 from flask import Blueprint, render_template, request, session, redirect, url_for
+from app.chat_client import ChatClient
 
 bp = Blueprint("routes", __name__)
+chat_client = ChatClient()
 
 
 @bp.route("/", methods=["GET"])
@@ -19,9 +21,9 @@ def chat():
         # Add user query to conversation
         session["conversation"].append({"role": "user", "content": query})
 
-        # Dummy bot response
-        bot_response = "Yes Sir"
-        session["conversation"].append({"role": "bot", "content": bot_response})
+        # Get bot response
+        bot_response = chat_client.get_chat_completion(session["conversation"])
+        session["conversation"].append({"role": "assistant", "content": bot_response})
 
         # Ensure session is saved
         session.modified = True
