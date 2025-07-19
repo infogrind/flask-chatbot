@@ -1,5 +1,6 @@
 import os
 import uuid
+import json
 from flask import (
     Blueprint,
     render_template,
@@ -85,14 +86,32 @@ def chat():
     )
 
     if isinstance(response, dict) and "tool_calls" in response:
-        # This is a tool call, add it to the conversation
-        session["conversation"].append(
-            {
-                "role": "assistant",
-                "content": None,
-                "tool_calls": response["tool_calls"],
+        # The model wants to call tools.
+        # First, add the assistant's message with tool calls to the history
+        assistant_message = {
+            "role": "assistant",
+            "content": None,
+            "tool_calls": [
+                {
+                    "id": tc["id"],
+                    "type": "function",
+                    "function": {"name": tc["name"], "arguments": "{}"},
+                }
+                for tc in response["tool_calls"]
+            ],
+        }
+        session["conversation"].append(assistant_message)
+
+        # Then, add the results of the tool calls to the history
+        for tool_call in response["tool_calls"]:
+            tool_message = {
+                "role": "tool",
+                "tool_call_id": tool_call["id"],
+                "name": tool_call["name"],
+                "content": json.dumps(tool_call["result"]),
             }
-        )
+            session["conversation"].append(tool_message)
+
         # Now, get the final response from the model
         final_response = chat_client.get_chat_completion(session["conversation"])
         session["conversation"].append({"role": "assistant", "content": final_response})
