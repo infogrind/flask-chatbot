@@ -9,6 +9,7 @@ dependencies = [
     "openai",
     "python-dotenv>=1.1.1",
     "requests>=2.32.4",
+    "spotipy>=2.25.1",
 ]
 
 [tool.ruff]

@@ -7,12 +7,24 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
 </head>
 <body>
+    <div class="header">
+        <h1>Chatbot</h1>
+        <div>
+            {% if is_spotify_connected %}
+                <span class="spotify-connected">Spotify Connected</span>
+            {% else %}
+                <a href="{{ url_for('routes.spotify_login') }}" class="spotify-button">Connect Spotify</a>
+            {% endif %}
+        </div>
+    </div>
     <div class="chat-container">
         <div class="chat-history" id="chat-history">
             {% for message in conversation %}
+                {% if message.content %}
                 <div class="message {{ 'user' if message.role == 'user' else 'bot' if message.role == 'assistant' else '' }}">
                     {{ message.content }}
                 </div>
+                {% endif %}
             {% endfor %}
         </div>
         <form class="chat-input" id="chat-form" method="post" action="{{ url_for('routes.chat') }}">

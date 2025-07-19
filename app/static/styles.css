@@ -92,3 +92,34 @@ body {
         opacity: .2;
     }
 }
+
+.header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 20px;
+    background-color: #fff;
+    border-bottom: 1px solid #ddd;
+    max-width: 800px;
+    margin: auto;
+    border-top-left-radius: 8px;
+    border-top-right-radius: 8px;
+}
+
+.spotify-button {
+    background-color: #1DB954;
+    color: white;
+    padding: 10px 20px;
+    border-radius: 20px;
+    text-decoration: none;
+    font-weight: bold;
+}
+
+.spotify-button:hover {
+    background-color: #1ed760;
+}
+
+.spotify-connected {
+    color: #1DB954;
+    font-weight: bold;
+}
