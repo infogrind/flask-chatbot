@@ -103,3 +103,121 @@ and all the other lines should have a maximum of 100 characters.
 # GEMINI.md Memory Updates
 
 Whenever I prefix a prompt with the hash sign `#`, it means I want you to memorize the instruction in GEMINI.md. In that case, please update GEMINI.md accordingly.
+
+# ChatGPT API Function calling
+
+Enable models to fetch data and take actions.
+
+**Function calling** provides a powerful and flexible way for OpenAI models to interface with your code or external services. This guide will explain how to connect the models to your own custom code to fetch data or take action.
+
+Get weather
+
+Function calling example with get\_weather function
+
+```python
+from openai import OpenAI
+
+client = OpenAI()
+
+tools = [{
+    "type": "function",
+    "name": "get_weather",
+    "description": "Get current temperature for a given location.",
+    "parameters": {
+        "type": "object",
+        "properties": {
+            "location": {
+                "type": "string",
+                "description": "City and country e.g. Bogotá, Colombia"
+            }
+        },
+        "required": [
+            "location"
+        ],
+        "additionalProperties": False
+    }
+}]
+
+response = client.responses.create(
+    model="gpt-4.1",
+    input=[{"role": "user", "content": "What is the weather like in Paris today?"}],
+    tools=tools
+)
+
+print(response.output)
+```
+
+```javascript
+import { OpenAI } from "openai";
+
+const openai = new OpenAI();
+
+const tools = [{
+    "type": "function",
+    "name": "get_weather",
+    "description": "Get current temperature for a given location.",
+    "parameters": {
+        "type": "object",
+        "properties": {
+            "location": {
+                "type": "string",
+                "description": "City and country e.g. Bogotá, Colombia"
+            }
+        },
+        "required": [
+            "location"
+        ],
+        "additionalProperties": false
+    }
+}];
+
+const response = await openai.responses.create({
+    model: "gpt-4.1",
+    input: [{ role: "user", content: "What is the weather like in Paris today?" }],
+    tools,
+});
+
+console.log(response.output);
+```
+
+```bash
+curl https://api.openai.com/v1/responses \
+-H "Content-Type: application/json" \
+-H "Authorization: Bearer $OPENAI_API_KEY" \
+-d '{
+    "model": "gpt-4.1",
+    "input": "What is the weather like in Paris today?",
+    "tools": [
+        {
+            "type": "function",
+            "name": "get_weather",
+            "description": "Get current temperature for a given location.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "location": {
+                        "type": "string",
+                        "description": "City and country e.g. Bogotá, Colombia"
+                    }
+                },
+                "required": [
+                    "location"
+                ],
+                "additionalProperties": false
+            }
+        }
+    ]
+}'
+```
+
+Output
+
+```json
+[{
+    "type": "function_call",
+    "id": "fc_12345xyz",
+    "call_id": "call_12345xyz",
+    "name": "get_weather",
+    "arguments": "{\"location\":\"Paris, France\"}"
+}]
+```
