@@ -10,6 +10,7 @@
     <div class="header">
         <h1>Chatbot</h1>
         <div>
+            <button id="clear-chat-button" class="clear-button">Clear History</button>
             {% if is_spotify_connected %}
                 <span class="spotify-connected">Spotify Connected</span>
             {% else %}
@@ -36,6 +37,7 @@
         const chatHistory = document.getElementById('chat-history');
         const chatForm = document.getElementById('chat-form');
         const inputField = document.getElementById('chat-input-field');
+        const clearChatButton = document.getElementById('clear-chat-button');
 
         function scrollToBottom() {
             chatHistory.scrollTop = chatHistory.scrollHeight;
@@ -43,6 +45,24 @@
 
         // Scroll to bottom on page load
         scrollToBottom();
+
+        clearChatButton.addEventListener('click', async function() {
+            try {
+                const response = await fetch("{{ url_for('routes.clear_chat') }}", {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    }
+                });
+                if (response.ok) {
+                    window.location.reload();
+                } else {
+                    console.error('Failed to clear chat history');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+            }
+        });
 
         chatForm.addEventListener('submit', async function(event) {
             event.preventDefault(); // Prevent default form submission

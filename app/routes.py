@@ -132,3 +132,10 @@ def chat():
 
     session.modified = True
     return jsonify({"response": bot_response})
+
+
+@bp.route("/clear", methods=["POST"])
+def clear_chat():
+    """Clears the conversation history from the session."""
+    session.pop("conversation", None)
+    return jsonify({"status": "ok"})
