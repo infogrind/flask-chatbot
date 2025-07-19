@@ -85,7 +85,23 @@ def chat():
 
     if hasattr(response_message, "tool_calls") and response_message.tool_calls:
         # The model wants to call tools.
-        session["conversation"].append(response_message)
+        # First, manually construct the assistant message to ensure correct format
+        assistant_message = {
+            "role": "assistant",
+            "content": response_message.content,
+            "tool_calls": [
+                {
+                    "id": tc.id,
+                    "type": tc.type,
+                    "function": {
+                        "name": tc.function.name,
+                        "arguments": tc.function.arguments,
+                    },
+                }
+                for tc in response_message.tool_calls
+            ],
+        }
+        session["conversation"].append(assistant_message)
 
         # Execute the tool calls and add the results to the history
         for tool_call in response_message.tool_calls:
