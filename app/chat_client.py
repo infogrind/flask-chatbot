@@ -3,7 +3,6 @@ import logging
 import os
 from dataclasses import dataclass
 from pprint import pformat
-from types import TracebackType
 from typing import List
 
 from openai import OpenAI
@@ -16,7 +15,6 @@ from openai.types.responses import (
     ResponseInputParam,
     ResponseOutputItem,
     ResponseOutputMessage,
-    ResponseOutputMessageParam,
     ResponseOutputRefusal,
     ResponseOutputText,
 )
@@ -92,7 +90,7 @@ class ChatClient:
         responses: List[str] = []
         for output in outputs:
             match output:
-                case ResponseOutputMessage(id=id, content=content, type=typ):
+                case ResponseOutputMessage(id=_, content=content, type=_):
                     for c in content:
                         match c:
                             case ResponseOutputText(text=text):

@@ -1,12 +1,16 @@
 import json
 from unittest.mock import patch
+
 from app import create_app
+from app.chat_client import ChatResponse
 
 
 @patch("app.routes.chat_client")
 def test_chat_post(mock_chat_client) -> None:
     # Arrange
-    mock_chat_client.get_chat_completion.return_value = "Test response"
+    mock_chat_client.get_chat_completion.return_value = ChatResponse(
+        conversation_history=[], response="Test response"
+    )
     app = create_app()
     client = app.test_client()
 
