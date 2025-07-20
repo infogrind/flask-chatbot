@@ -21,7 +21,7 @@ from app.spotify_client import SpotifyClient
 bp = Blueprint("routes", __name__)
 chat_client = ChatClient()
 
-SCOPE = "playlist-read-private"
+SCOPE = "playlist-read-private user-library-read"
 
 
 def get_spotify_auth_manager():

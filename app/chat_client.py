@@ -80,6 +80,18 @@ class ChatClient:
                 },
                 "strict": True,
             },
+            {
+                "type": "function",
+                "name": "get_liked_songs",
+                "description": "Returns a list of the user's liked songs from Spotify.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {},
+                    "required": [],
+                    "additionalProperties": False,
+                },
+                "strict": True,
+            },
         ]
 
     def handle_non_tool_outputs(
@@ -115,6 +127,8 @@ class ChatClient:
     ) -> FunctionCallOutput:
         if name == "get_my_playlists":
             output = self.spotify_client.get_user_playlists()
+        elif name == "get_liked_songs":
+            output = self.spotify_client.get_liked_songs()
         elif name == "get_playlist_contents":
             args = json.loads(arguments)
             playlist_id = args["playlist_id"]

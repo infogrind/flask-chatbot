@@ -27,3 +27,25 @@ class SpotifyClient:
             else:
                 results = None
         return playlists
+
+    def get_liked_songs(self):
+        """Gets the current user's liked songs."""
+        liked_songs = []
+        results = self.client.current_user_saved_tracks()
+        while results:
+            for item in results["items"]:
+                track = item["track"]
+                liked_songs.append(
+                    {
+                        "name": track["name"],
+                        "artist": ", ".join(
+                            artist["name"] for artist in track["artists"]
+                        ),
+                        "album": track["album"]["name"],
+                    }
+                )
+            if results["next"]:
+                results = self.client.next(results)
+            else:
+                results = None
+        return liked_songs
