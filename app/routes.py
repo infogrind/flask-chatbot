@@ -87,12 +87,13 @@ def chat():
         }
     )
 
-    # auth_manager = get_spotify_auth_manager()
-    # spotify_client = SpotifyClient(auth_manager=auth_manager)
-    #
+    auth_manager = get_spotify_auth_manager()
+    spotify_client = SpotifyClient(auth_manager=auth_manager)
 
     # Get bot response, potentially with tool calls
-    response: ChatResponse = chat_client.get_chat_completion(conversation_history)
+    response: ChatResponse = chat_client.get_chat_completion(
+        conversation_history, spotify_client
+    )
     session["conversation"] = response.conversation_history
     session.modified = True
 
