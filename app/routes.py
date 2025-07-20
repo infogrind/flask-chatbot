@@ -11,7 +11,9 @@ from flask import (
     session,
     url_for,
 )
-from openai.types.responses import Response
+from openai.types.responses import (
+    ResponseInputParam,
+)
 from spotipy.oauth2 import SpotifyOAuth
 
 from app.chat_client import ChatClient, ChatResponse
@@ -77,17 +79,23 @@ def chat():
     if not query:
         return jsonify({"error": "Query is required"}), 400
 
+    conversation_history: ResponseInputParam = session["conversation"]
+    conversation_history.append(
+        {
+            "role": "user",
+            "content": query,
+        }
+    )
+
     # auth_manager = get_spotify_auth_manager()
     # spotify_client = SpotifyClient(auth_manager=auth_manager)
+    #
 
     # Get bot response, potentially with tool calls
-    response: ChatResponse = chat_client.get_chat_completion(
-        query, session["conversation"]
-    )
+    response: ChatResponse = chat_client.get_chat_completion(conversation_history)
     session["conversation"] = response.conversation_history
     session.modified = True
 
-    session.modified = True
     return jsonify({"response": response.response})
 
 
