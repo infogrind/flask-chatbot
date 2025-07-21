@@ -94,9 +94,11 @@ class SpotifyClient:
         Returns:
             The ID of the newly created playlist.
         """
+        logger.info(f"Creating playlist '{name}'")
         user_id = self.client.me()["id"]
         playlist = self.client.user_playlist_create(
             user_id, name, public=True, description=description
         )
+        logger.info(f"Adding items to playlist: {track_uris}")
         self.client.playlist_add_items(playlist["id"], track_uris)
         return playlist["id"]

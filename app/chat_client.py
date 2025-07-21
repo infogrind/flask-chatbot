@@ -24,12 +24,6 @@ from app.spotify_client import SpotifyClient
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)  # enable DEBUG only for this module
-if not logger.handlers:
-    handler = logging.StreamHandler()
-    handler.setLevel(logging.DEBUG)
-    formatter = logging.Formatter("%(asctime)s %(levelname)s [%(name)s]: %(message)s")
-    handler.setFormatter(formatter)
-    logger.addHandler(handler)
 
 
 # passed to each call of `get_chat_completion`.
@@ -169,6 +163,7 @@ class ChatClient:
             name = args["name"]
             description = args["description"]
             track_uris = args["track_uris"]
+            logger.info(f"Creating playlist '{name}' with {len(track_uris)} tracks.")
             output = self.spotify_client.create_playlist(name, description, track_uris)
         else:
             output = {"error": f"Undefined function: '{name}'"}
@@ -254,7 +249,7 @@ explicitly confirms that you can do it.
                 logger.info(f"Conversation history: {pformat(conversation_history)}")
                 logger.info("Calling API")
                 response: Response = self.client.responses.create(
-                    model="gpt-3.5-turbo",
+                    model="gpt-4o-mini",
                     input=[system_prompt] + conversation_history,
                     tools=self.tools,
                     tool_choice="auto",
