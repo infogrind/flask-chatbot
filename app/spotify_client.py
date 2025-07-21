@@ -1,4 +1,8 @@
+import logging
+
 import spotipy
+
+logger = logging.getLogger(__name__)
 
 
 class SpotifyClient:
@@ -52,6 +56,7 @@ class SpotifyClient:
 
     def get_playlist_contents(self, playlist_id: str):
         """Gets the tracks in a specific playlist."""
+        logger.info(f"Getting contents for playlist: {playlist_id}")
         tracks = []
         results = self.client.playlist_items(playlist_id)
         while results:
