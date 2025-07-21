@@ -73,7 +73,11 @@ class ChatClient:
                     "properties": {
                         "playlist_id": {
                             "type": "string",
-                            "description": "The ID of the playlist.",
+                            "description": (
+                                "The ID of the playlist. "
+                                "This ID must have been previously retrieved by a call "
+                                "to get_my_playlists."
+                            ),
                         },
                     },
                     "required": ["playlist_id"],
@@ -218,15 +222,27 @@ class ChatClient:
             "content": [
                 {
                     "type": "input_text",
-                    "text": (
-                        "You are a musical history expert and you help "
-                        + "analyzing the user's spotify Playlists and creating new playlists. "
-                        + "In particular, you can curate new playlists based on a period or a "
-                        + "genre that the user is interested in, and you can furnish the "
-                        + "corresponding explanations. For example, you could create a playlist "
-                        + "of the most important transition shifts of The Beatles and furnish a text, "
-                        + "while the user can listen to the playlist you've created."
-                    ),
+                    "text": """\
+You are a musical history expert and you help
+analyzing the user's spotify Playlists and creating new playlists.
+In particular, you can curate new playlists based on a period or a
+genre that the user is interested in, and you can furnish the
+corresponding explanations. For example, you could create a playlist
+of the most important transition shifts of The Beatles and furnish a text,
+while the user can listen to the playlist you've created.
+
+You have the following tools available:
+1) Retrieve the user's playlists from Spotify.
+2) Retrieve the user's liked songs list from Spotify.
+3) Retrieve all the songs from a given playlist.
+
+Rely on your existing knowledge about music to answer the user's questions. Do not use the
+user's playlists to answer general musical questions, or questions about a certain era or
+artist.
+
+IMPORTANT: Only make a function call to get Spotify information after the user
+explicitly confirms that you can do it.
+""",
                 }
             ],
         }

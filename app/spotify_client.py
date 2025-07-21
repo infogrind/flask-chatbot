@@ -22,6 +22,7 @@ class SpotifyClient:
                     playlists.append(
                         {
                             "name": item["name"],
+                            "playlist_id": item["id"],
                             "description": item["description"],
                             "tracks": item["tracks"]["total"],
                         }
@@ -46,6 +47,7 @@ class SpotifyClient:
                             artist["name"] for artist in track["artists"]
                         ),
                         "album": track["album"]["name"],
+                        "track_id": track["id"],
                     }
                 )
             if results["next"]:
@@ -70,6 +72,7 @@ class SpotifyClient:
                                 artist["name"] for artist in track["artists"]
                             ),
                             "album": track["album"]["name"],
+                            "track_id": track["id"],
                         }
                     )
             if results["next"]:
