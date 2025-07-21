@@ -72,3 +72,23 @@ class SpotifyClient:
             else:
                 results = None
         return tracks
+
+    def create_playlist(
+        self, name: str, description: str, track_uris: list[str]
+    ) -> str:
+        """Creates a new playlist and adds tracks to it.
+
+        Args:
+            name: The name of the playlist.
+            description: The description of the playlist.
+            track_uris: A list of Spotify track URIs to add to the playlist.
+
+        Returns:
+            The ID of the newly created playlist.
+        """
+        user_id = self.client.me()["id"]
+        playlist = self.client.user_playlist_create(
+            user_id, name, public=True, description=description
+        )
+        self.client.playlist_add_items(playlist["id"], track_uris)
+        return playlist["id"]

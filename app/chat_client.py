@@ -93,6 +93,32 @@ class ChatClient:
                 },
                 "strict": True,
             },
+            {
+                "type": "function",
+                "name": "create_playlist",
+                "description": "Creates a new playlist on Spotify.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "name": {
+                            "type": "string",
+                            "description": "The name of the playlist.",
+                        },
+                        "description": {
+                            "type": "string",
+                            "description": "The description of the playlist.",
+                        },
+                        "track_uris": {
+                            "type": "array",
+                            "items": {"type": "string"},
+                            "description": "A list of Spotify track URIs to add to the playlist.",
+                        },
+                    },
+                    "required": ["name", "description", "track_uris"],
+                    "additionalProperties": False,
+                },
+                "strict": True,
+            },
         ]
 
     def handle_non_tool_outputs(
@@ -134,6 +160,12 @@ class ChatClient:
             args = json.loads(arguments)
             playlist_id = args["playlist_id"]
             output = self.spotify_client.get_playlist_contents(playlist_id)
+        elif name == "create_playlist":
+            args = json.loads(arguments)
+            name = args["name"]
+            description = args["description"]
+            track_uris = args["track_uris"]
+            output = self.spotify_client.create_playlist(name, description, track_uris)
         else:
             output = {"error": f"Undefined function: '{name}'"}
         return {
