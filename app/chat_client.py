@@ -72,7 +72,8 @@ class ChatClient:
                     "type": "object",
                     "properties": {
                         "playlist_id": {
-                            "type": "integer",
+                            "type": "string",
+                            "description": "The ID of the playlist.",
                         },
                     },
                     "required": ["playlist_id"],
@@ -132,33 +133,7 @@ class ChatClient:
         elif name == "get_playlist_contents":
             args = json.loads(arguments)
             playlist_id = args["playlist_id"]
-            if playlist_id == 1:
-                output = [
-                    {
-                        "song_id": 1,
-                        "song_name": "Paradise City",
-                        "artist": "Guns N'Roses",
-                    },
-                    {"song_id": 2, "song_name": "Dream On", "artist": "Aerosmith"},
-                ]
-            else:
-                output = [
-                    {
-                        "song_id": 3,
-                        "song_name": "Beat It",
-                        "artist": "Michael Jackson",
-                    },
-                    {
-                        "song_id": 4,
-                        "song_name": "The Duke",
-                        "artist": "Stevie Wonder",
-                    },
-                    {
-                        "song_id": 5,
-                        "song_name": "Let It Be",
-                        "artist": "The Beatles",
-                    },
-                ]
+            output = self.spotify_client.get_playlist_contents(playlist_id)
         else:
             output = {"error": f"Undefined function: '{name}'"}
         return {

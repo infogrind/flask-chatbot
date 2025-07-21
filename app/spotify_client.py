@@ -49,3 +49,26 @@ class SpotifyClient:
             else:
                 results = None
         return liked_songs
+
+    def get_playlist_contents(self, playlist_id: str):
+        """Gets the tracks in a specific playlist."""
+        tracks = []
+        results = self.client.playlist_items(playlist_id)
+        while results:
+            for item in results["items"]:
+                track = item["track"]
+                if track:
+                    tracks.append(
+                        {
+                            "name": track["name"],
+                            "artist": ", ".join(
+                                artist["name"] for artist in track["artists"]
+                            ),
+                            "album": track["album"]["name"],
+                        }
+                    )
+            if results["next"]:
+                results = self.client.next(results)
+            else:
+                results = None
+        return tracks
