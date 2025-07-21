@@ -117,6 +117,31 @@ class ChatClient:
                 },
                 "strict": True,
             },
+            {
+                "type": "function",
+                "name": "search_songs",
+                "description": "Searches for songs on Spotify by title and artist.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "title": {
+                            "type": "string",
+                            "description": "The title of the song.",
+                        },
+                        "artist": {
+                            "type": "string",
+                            "description": "The artist of the song.",
+                        },
+                        "limit": {
+                            "type": "integer",
+                            "description": "The maximum number of songs to return.",
+                        },
+                    },
+                    "required": ["title", "artist", "limit"],
+                    "additionalProperties": False,
+                },
+                "strict": True,
+            },
         ]
 
     def handle_non_tool_outputs(
@@ -165,6 +190,12 @@ class ChatClient:
             track_uris = args["track_uris"]
             logger.info(f"Creating playlist '{name}' with {len(track_uris)} tracks.")
             output = self.spotify_client.create_playlist(name, description, track_uris)
+        elif name == "search_songs":
+            args = json.loads(arguments)
+            title = args["title"]
+            artist = args["artist"]
+            limit = args.get("limit", 5)
+            output = self.spotify_client.search_songs(title, artist, limit)
         else:
             output = {"error": f"Undefined function: '{name}'"}
         return {
@@ -230,10 +261,13 @@ You have the following tools available:
 1) Retrieve the user's playlists from Spotify.
 2) Retrieve the user's liked songs list from Spotify.
 3) Retrieve all the songs from a given playlist.
+4) Retrieve the spotify ID for a given song/artist.
 
 Rely on your existing knowledge about music to answer the user's questions. Do not use the
 user's playlists to answer general musical questions, or questions about a certain era or
 artist.
+
+When creating a playlist, you must first call `search_songs` to get each song's Spotify ID.
 
 IMPORTANT: Only make a function call to get Spotify information after the user
 explicitly confirms that you can do it.

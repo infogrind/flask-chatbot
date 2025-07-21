@@ -1,4 +1,5 @@
 import logging
+import urllib.parse
 
 import spotipy
 
@@ -102,3 +103,35 @@ class SpotifyClient:
         logger.info(f"Adding items to playlist: {track_uris}")
         self.client.playlist_add_items(playlist["id"], track_uris)
         return playlist["id"]
+
+    def search_songs(
+        self, title: str, artist: str, limit: int = 5
+    ) -> list[dict[str, str]]:
+        """Searches for songs on Spotify.
+
+        Args:
+            title: The title of the song.
+            artist: The artist of the song.
+            limit: The maximum number of songs to return.
+
+        Returns:
+            A list of songs, each a dictionary with song details.
+        """
+        encoded_title = urllib.parse.quote(title)
+        encoded_artist = urllib.parse.quote(artist)
+        query = f"track:{encoded_title} artist:{encoded_artist}"
+        results = self.client.search(q=query, type="track", limit=limit)
+        songs = []
+        if results and results["tracks"]["items"]:
+            for item in results["tracks"]["items"]:
+                songs.append(
+                    {
+                        "name": item["name"],
+                        "artist": ", ".join(
+                            artist["name"] for artist in item["artists"]
+                        ),
+                        "album": item["album"]["name"],
+                        "track_id": item["id"],
+                    }
+                )
+        return songs

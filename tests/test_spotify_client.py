@@ -1,3 +1,4 @@
+import urllib.parse
 from unittest.mock import MagicMock, patch
 
 from app.spotify_client import SpotifyClient
@@ -12,6 +13,7 @@ def test_get_user_playlists():
         mock_spotify_instance.current_user_playlists.return_value = {
             "items": [
                 {
+                    "id": "test_playlist_id",
                     "owner": {"id": "test_user"},
                     "name": "Test Playlist",
                     "description": "A test playlist",
@@ -40,6 +42,7 @@ def test_get_liked_songs():
             "items": [
                 {
                     "track": {
+                        "id": "test_song_id",
                         "name": "Test Song",
                         "artists": [{"name": "Test Artist"}],
                         "album": {"name": "Test Album"},
@@ -70,6 +73,7 @@ def test_get_playlist_contents():
             "items": [
                 {
                     "track": {
+                        "id": "test_song_id",
                         "name": "Test Song",
                         "artists": [{"name": "Test Artist"}],
                         "album": {"name": "Test Album"},
@@ -112,4 +116,63 @@ def test_create_playlist():
         )
         mock_spotify_instance.playlist_add_items.assert_called_once_with(
             "new_playlist_id", ["spotify:track:123"]
+        )
+
+
+def test_search_songs():
+    # Arrange
+    mock_auth_manager = MagicMock()
+    with patch("spotipy.Spotify") as mock_spotify:
+        mock_spotify_instance = mock_spotify.return_value
+        mock_spotify_instance.search.return_value = {
+            "tracks": {
+                "items": [
+                    {
+                        "id": "test_id_1",
+                        "name": "Test Song",
+                        "artists": [{"name": "Test Artist"}],
+                        "album": {"name": "Test Album"},
+                    },
+                    {
+                        "id": "test_id_2",
+                        "name": "Another Song",
+                        "artists": [{"name": "Another Artist"}],
+                        "album": {"name": "Another Album"},
+                    },
+                ]
+            }
+        }
+        client = SpotifyClient(auth_manager=mock_auth_manager)
+
+        # Act
+        songs = client.search_songs("Test", "Artist", limit=2)
+
+        # Assert
+        assert len(songs) == 2
+        assert songs[0]["name"] == "Test Song"
+        assert songs[1]["name"] == "Another Song"
+        mock_spotify_instance.search.assert_called_once_with(
+            q="track:Test artist:Artist", type="track", limit=2
+        )
+
+
+def test_search_songs_with_special_characters():
+    # Arrange
+    mock_auth_manager = MagicMock()
+    with patch("spotipy.Spotify") as mock_spotify:
+        mock_spotify_instance = mock_spotify.return_value
+        mock_spotify_instance.search.return_value = {"tracks": {"items": []}}
+        client = SpotifyClient(auth_manager=mock_auth_manager)
+        title = "Song with / and spaces"
+        artist = "Artist with & and ="
+
+        # Act
+        client.search_songs(title, artist)
+
+        # Assert
+        encoded_title = urllib.parse.quote(title)
+        encoded_artist = urllib.parse.quote(artist)
+        expected_query = f"track:{encoded_title} artist:{encoded_artist}"
+        mock_spotify_instance.search.assert_called_once_with(
+            q=expected_query, type="track", limit=5
         )
