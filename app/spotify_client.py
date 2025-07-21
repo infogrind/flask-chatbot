@@ -119,8 +119,14 @@ class SpotifyClient:
         """
         encoded_title = urllib.parse.quote(title)
         encoded_artist = urllib.parse.quote(artist)
-        query = f"track:{encoded_title} artist:{encoded_artist}"
+        query = f"track:{encoded_title} {encoded_artist}"
+        logger.info(f"Searching songs with query '{query}'.")
         results = self.client.search(q=query, type="track", limit=limit)
+        if results:
+            logger.info(f"Found {len(results)} results.")
+            print("%s" % results)
+        else:
+            logger.info("Results was empty")
         songs = []
         if results and results["tracks"]["items"]:
             for item in results["tracks"]["items"]:
@@ -134,4 +140,5 @@ class SpotifyClient:
                         "track_id": item["id"],
                     }
                 )
+        logger.info(f"Returning songs: {songs}.")
         return songs
