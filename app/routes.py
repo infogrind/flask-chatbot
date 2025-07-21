@@ -41,7 +41,8 @@ def index():
         session["conversation"] = []
 
     auth_manager = get_spotify_auth_manager()
-    is_spotify_connected = auth_manager.get_cached_token() is not None
+    token_info = auth_manager.cache_handler.get_cached_token()
+    is_spotify_connected = auth_manager.validate_token(token_info) is not None
 
     return render_template(
         "index.html",
