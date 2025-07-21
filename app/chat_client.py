@@ -188,7 +188,12 @@ class ChatClient:
                     "type": "input_text",
                     "text": (
                         "You are a musical history expert and you help "
-                        + "analyzing the user's spotify Playlists and creating new playlists."
+                        + "analyzing the user's spotify Playlists and creating new playlists. "
+                        + "In particular, you can curate new playlists based on a period or a "
+                        + "genre that the user is interested in, and you can furnish the "
+                        + "corresponding explanations. For example, you could create a playlist "
+                        + "of the most important transition shifts of The Beatles and furnish a text, "
+                        + "while the user can listen to the playlist you've created."
                     ),
                 }
             ],
