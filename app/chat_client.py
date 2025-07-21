@@ -183,7 +183,10 @@ class ChatClient:
             "content": [
                 {
                     "type": "input_text",
-                    "text": "You are a musical history expert and you help analyzing the user's spotify Playlists and creating new playlists.",
+                    "text": (
+                        "You are a musical history expert and you help "
+                        + "analyzing the user's spotify Playlists and creating new playlists."
+                    ),
                 }
             ],
         }
