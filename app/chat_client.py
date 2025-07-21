@@ -120,7 +120,7 @@ class ChatClient:
                     responses.append(f"Unknown output type: {type(output).__name__}")
         return ChatResponse(conversation_history, "\n".join(responses))
 
-    def handle_function_call(
+    def perform_function_call(
         self,
         name: str,
         call_id: str,
@@ -160,10 +160,13 @@ class ChatClient:
                     }
                     if id:
                         function_call["id"] = id
-                    conversation_history.append(function_call)
-                    conversation_history.append(
-                        self.handle_function_call(name, call_id, arguments)
+                    function_call_result: FunctionCallOutput = (
+                        self.perform_function_call(name, call_id, arguments)
                     )
+                    # Only save function call if result was successfully obtained,
+                    # otherwise we'll have a corrupted conversation context.
+                    conversation_history.append(function_call)
+                    conversation_history.append(function_call_result)
                 case _:
                     logger.info(
                         f"Skipping unexpected output of type {type(output).__name__}: {pformat(output)}"
