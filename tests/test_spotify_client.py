@@ -152,7 +152,7 @@ def test_search_songs():
         assert songs[0]["name"] == "Test Song"
         assert songs[1]["name"] == "Another Song"
         mock_spotify_instance.search.assert_called_once_with(
-            q="track:Test artist:Artist", type="track", limit=2
+            q="track:Test Artist", type="track", limit=2
         )
 
 
@@ -172,7 +172,7 @@ def test_search_songs_with_special_characters():
         # Assert
         encoded_title = urllib.parse.quote(title)
         encoded_artist = urllib.parse.quote(artist)
-        expected_query = f"track:{encoded_title} artist:{encoded_artist}"
+        expected_query = f"track:{encoded_title} {encoded_artist}"
         mock_spotify_instance.search.assert_called_once_with(
             q=expected_query, type="track", limit=5
         )
