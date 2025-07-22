@@ -19,7 +19,7 @@ from openai.types.responses import (
 )
 from spotipy.oauth2 import SpotifyOAuth
 
-from app.chat_client import ChatClient
+from app.chat_client import ChatClient, ChatResponse, ToolCallResponse
 from app.spotify_client import SpotifyClient
 
 logger = logging.getLogger(__name__)
@@ -102,13 +102,18 @@ def chat():
             conversation_history, spotify_client
         ):
             logger.info("Got completion response")
-            if response.conversation_history:
-                session["conversation"] = response.conversation_history
-                session.modified = True
+            match response:
+                case ChatResponse(history, response):
+                    session["conversation"] = history
+                    session.modified = True
 
-            data = {"response": response.response}
-            json_data = json.dumps(data)
-            yield f"data: {json_data}\n\n"
+                    data = {"response": response}
+                    json_data = json.dumps(data)
+                    yield f"data: {json_data}\n\n"
+                case ToolCallResponse(function_name, _):
+                    data = {"tool_call": function_name}
+                    json_data = json.dumps(data)
+                    yield f"data: {json_data}\n\n"
 
         json_end = json.dumps({"status": "end"})
         yield f"data: {json_end}\n\n"

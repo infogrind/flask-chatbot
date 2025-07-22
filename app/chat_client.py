@@ -3,7 +3,7 @@ import logging
 import os
 from dataclasses import dataclass
 from pprint import pformat
-from typing import Iterable, List
+from typing import Iterable, List, TypeAlias
 
 from openai import OpenAI
 from openai.types.responses import (
@@ -34,6 +34,15 @@ class ChatResponse:
 
     # The response to display in the UI. Can be an error.
     response: str
+
+
+@dataclass
+class ToolCallResponse:
+    function_name: str
+    arguments: str
+
+
+ChatStreamResponse: TypeAlias = ChatResponse | ToolCallResponse
 
 
 class ChatClient:
@@ -238,7 +247,7 @@ class ChatClient:
 
     def get_chat_completion(
         self, conversation_history: ResponseInputParam, spotify_client
-    ) -> Iterable[ChatResponse]:
+    ) -> Iterable[ChatStreamResponse]:
         """Gets a chat completion from the OpenAI API, handling tool calls."""
 
         self.spotify_client: SpotifyClient = spotify_client
@@ -297,10 +306,32 @@ explicitly confirms that you can do it.
                 if not any(
                     isinstance(o, ResponseFunctionToolCall) for o in response.output
                 ):
+                    logger.info("Hundwyler: No tool calls, returning response")
                     yield self.handle_non_tool_outputs(
                         response.output, conversation_history
                     )
                     return
+
+                logger.info("Hundwyler: Tool calls found")
+                for o in response.output:
+                    match o:
+                        case ResponseFunctionToolCall(name=name, arguments=args):
+                            yield ToolCallResponse(name, args)
+                        case ResponseOutputMessage(content=content):
+                            for c in content:
+                                match c:
+                                    case ResponseOutputText(text=text):
+                                        conversation_history.append(
+                                            {"role": "assistant", "content": text}
+                                        )
+                                        yield ChatResponse(conversation_history, text)
+                                    case ResponseOutputRefusal(refusal=refusal):
+                                        conversation_history.append(
+                                            {"role": "assistant", "content": refusal}
+                                        )
+                                        yield ChatResponse(
+                                            conversation_history, refusal
+                                        )
 
                 conversation_history = self.process_tool_calls(
                     response.output, conversation_history

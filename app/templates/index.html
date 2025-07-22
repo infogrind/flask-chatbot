@@ -127,16 +127,24 @@
 
                       console.log("Data: " + data)
 
-                      loadingIndicator.remove();
 
-                      // Add bot response to history
-                      const botMessage = document.createElement('div');
-                      botMessage.className = 'message bot';
-                      botMessage.innerHTML = md.render(data.response);
-                      chatHistory.appendChild(botMessage);
+                      if (data?.tool_call) {
+                        console.log("Tool call:" + data.tool_call)
+                      }
+                      else if (data?.response) {
+                        loadingIndicator.remove();
 
-                      // Scroll to bottom again
-                      scrollToBottom();
+                        // Add bot response to history
+                        const botMessage = document.createElement('div');
+                        botMessage.className = 'message bot';
+                        botMessage.innerHTML = md.render(data.response);
+                        chatHistory.appendChild(botMessage);
+
+                        // Scroll to bottom again
+                        scrollToBottom();
+                      } else {
+                        console.log("No usable information found in data.");
+                      }
                     }
 
                 } catch (error) {
