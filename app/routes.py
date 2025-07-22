@@ -1,8 +1,11 @@
+import json
+import logging
 import os
 import uuid
 
 from flask import (
     Blueprint,
+    Response,
     jsonify,
     redirect,
     render_template,
@@ -17,6 +20,8 @@ from spotipy.oauth2 import SpotifyOAuth
 
 from app.chat_client import ChatClient, ChatResponse
 from app.spotify_client import SpotifyClient
+
+logger = logging.getLogger(__name__)
 
 bp = Blueprint("routes", __name__)
 chat_client = ChatClient()
@@ -70,12 +75,11 @@ def spotify_callback():
     return redirect(url_for("routes.index"))
 
 
-@bp.route("/chat", methods=["POST"])
+@bp.route("/chat")
 def chat():
+    logger.info("Called /chat")
     """Handles chat submissions, including tool calls."""
-    if not request.json:
-        return jsonify({"error": "No JSON found in query"}), 400
-    query = request.json.get("query")
+    query = request.args.get("query")
     if not query:
         return jsonify({"error": "Query is required"}), 400
 
@@ -97,7 +101,19 @@ def chat():
     session["conversation"] = response.conversation_history
     session.modified = True
 
-    return jsonify({"response": response.response})
+    # TODO: Refactor `get_chat_completion` to return a stream, and
+    # consume that stream here.
+
+    def stream(response):
+        logger.info("Starting chat response stream")
+        data = {"response": response}
+        json_data = json.dumps(data)
+        yield f"data: {json_data}\n\n"
+
+        json_end = json.dumps({"status": "end"})
+        yield f"data: {json_end}\n\n"
+
+    return Response(stream(response.response), mimetype="text/event-stream")
 
 
 @bp.route("/clear", methods=["POST"])

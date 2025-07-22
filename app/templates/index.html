@@ -31,7 +31,7 @@
                 {% endif %}
             {% endfor %}
         </div>
-        <form class="chat-input" id="chat-form" method="post" action="{{ url_for('routes.chat') }}">
+        <form class="chat-input" id="chat-form" method="get" action="{{ url_for('routes.chat') }}">
             <input type="text" name="query" id="chat-input-field" placeholder="Type your message..." autocomplete="off" autofocus>
             <button type="submit">Send</button>
         </form>
@@ -113,27 +113,31 @@
                 inputField.value = '';
 
                 try {
-                    const response = await fetch("{{ url_for('routes.chat') }}", {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                        },
-                        body: JSON.stringify({ query: messageToSend }),
-                    });
+                    console.log("Creating event source")
+                    const eventSource = new EventSource(`/chat?query=${query}`)
+                    eventSource.onmessage = (event) => {
+                      console.log("Received event")
+                      const data = JSON.parse(event.data);
 
-                    const data = await response.json();
+                      if (data.status === "end") {
+                        eventSource.close()
+                        console.log("Stream ended by server")
+                        return
+                      }
 
-                    // Remove loading indicator
-                    loadingIndicator.remove();
+                      console.log("Data: " + data)
 
-                    // Add bot response to history
-                    const botMessage = document.createElement('div');
-                    botMessage.className = 'message bot';
-                    botMessage.innerHTML = md.render(data.response);
-                    chatHistory.appendChild(botMessage);
+                      loadingIndicator.remove();
 
-                    // Scroll to bottom again
-                    scrollToBottom();
+                      // Add bot response to history
+                      const botMessage = document.createElement('div');
+                      botMessage.className = 'message bot';
+                      botMessage.innerHTML = md.render(data.response);
+                      chatHistory.appendChild(botMessage);
+
+                      // Scroll to bottom again
+                      scrollToBottom();
+                    }
 
                 } catch (error) {
                     console.error('Error:', error);
