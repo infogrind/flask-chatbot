@@ -6,11 +6,11 @@ from app.chat_client import ChatResponse
 
 
 @patch("app.routes.chat_client")
-def test_chat_post(mock_chat_client) -> None:
+def test_chat_get(mock_chat_client) -> None:
     # Arrange
-    mock_chat_client.get_chat_completion.return_value = ChatResponse(
-        conversation_history=[], response="Test response"
-    )
+    mock_chat_client.get_chat_completion.return_value = [
+        ChatResponse(conversation_history=[], response="Test response")
+    ]
     app = create_app()
     client = app.test_client()
 
@@ -18,10 +18,8 @@ def test_chat_post(mock_chat_client) -> None:
     with client:
         # First, visit the index page to initialize the conversation in the session
         client.get("/")
-        response = client.post(
-            "/chat",
-            data=json.dumps({"query": "Test query"}),
-            content_type="application/json",
+        response = client.get(
+            "/chat?query=Test%20query",
             follow_redirects=True,
         )
 
@@ -29,6 +27,12 @@ def test_chat_post(mock_chat_client) -> None:
     assert response.status_code == 200
     # The response from the chat endpoint is JSON, so we need to check for the
     # response in the JSON data.
-    json_response = json.loads(response.data)
-    assert json_response["response"] == "Test response"
+    elements = response.data.rstrip(b"\n").split(b"\n\n")
+    assert len(elements) == 2
+    print("Hundwyler: %s" % elements)
+    dicts = [
+        json.loads(item.decode().removeprefix("data: ").strip()) for item in elements
+    ]
+    assert dicts[0]["response"] == "Test response"
+    assert dicts[1]["status"] == "end"
     mock_chat_client.get_chat_completion.assert_called_once()
