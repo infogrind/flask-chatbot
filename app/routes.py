@@ -110,8 +110,9 @@ def chat():
                     data = {"response": response}
                     json_data = json.dumps(data)
                     yield f"data: {json_data}\n\n"
-                case ToolCallResponse(function_name, _):
-                    data = {"tool_call": function_name}
+                case ToolCallResponse(function_name, arguments):
+                    tool_code = f"{function_name}({arguments})"
+                    data = {"tool_code": tool_code}
                     json_data = json.dumps(data)
                     yield f"data: {json_data}\n\n"
 

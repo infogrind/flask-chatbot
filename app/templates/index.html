@@ -128,8 +128,11 @@
                       console.log("Data: " + data)
 
 
-                      if (data?.tool_call) {
-                        console.log("Tool call:" + data.tool_call)
+                      if (data?.tool_code) {
+                        const toolCallMessage = document.createElement('div');
+                        toolCallMessage.className = 'message tool-call';
+                        toolCallMessage.textContent = data.tool_code;
+                        chatHistory.insertBefore(toolCallMessage, loadingIndicator);
                       }
                       else if (data?.response) {
                         loadingIndicator.remove();

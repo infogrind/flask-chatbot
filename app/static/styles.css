@@ -41,6 +41,14 @@ body {
     align-self: flex-start;
 }
 
+.message.tool-call {
+    font-size: 0.8rem;
+    font-style: italic;
+    color: #666;
+    align-self: flex-start;
+    margin-left: 20px;
+}
+
 .chat-input {
     display: flex;
     padding: 20px;
