@@ -3,7 +3,7 @@ import logging
 import os
 from dataclasses import dataclass
 from pprint import pformat
-from typing import List
+from typing import Iterable, List
 
 from openai import OpenAI
 from openai.types.responses import (
@@ -238,7 +238,7 @@ class ChatClient:
 
     def get_chat_completion(
         self, conversation_history: ResponseInputParam, spotify_client
-    ) -> ChatResponse:
+    ) -> Iterable[ChatResponse]:
         """Gets a chat completion from the OpenAI API, handling tool calls."""
 
         self.spotify_client: SpotifyClient = spotify_client
@@ -297,9 +297,10 @@ explicitly confirms that you can do it.
                 if not any(
                     isinstance(o, ResponseFunctionToolCall) for o in response.output
                 ):
-                    return self.handle_non_tool_outputs(
+                    yield self.handle_non_tool_outputs(
                         response.output, conversation_history
                     )
+                    return
 
                 conversation_history = self.process_tool_calls(
                     response.output, conversation_history

@@ -11,6 +11,7 @@ from flask import (
     render_template,
     request,
     session,
+    stream_with_context,
     url_for,
 )
 from openai.types.responses import (
@@ -18,7 +19,7 @@ from openai.types.responses import (
 )
 from spotipy.oauth2 import SpotifyOAuth
 
-from app.chat_client import ChatClient, ChatResponse
+from app.chat_client import ChatClient
 from app.spotify_client import SpotifyClient
 
 logger = logging.getLogger(__name__)
@@ -94,26 +95,25 @@ def chat():
     auth_manager = get_spotify_auth_manager()
     spotify_client = SpotifyClient(auth_manager=auth_manager)
 
-    # Get bot response, potentially with tool calls
-    response: ChatResponse = chat_client.get_chat_completion(
-        conversation_history, spotify_client
-    )
-    session["conversation"] = response.conversation_history
-    session.modified = True
-
-    # TODO: Refactor `get_chat_completion` to return a stream, and
-    # consume that stream here.
-
-    def stream(response):
+    def stream():
         logger.info("Starting chat response stream")
-        data = {"response": response}
-        json_data = json.dumps(data)
-        yield f"data: {json_data}\n\n"
+
+        for response in chat_client.get_chat_completion(
+            conversation_history, spotify_client
+        ):
+            logger.info("Got completion response")
+            if response.conversation_history:
+                session["conversation"] = response.conversation_history
+                session.modified = True
+
+            data = {"response": response.response}
+            json_data = json.dumps(data)
+            yield f"data: {json_data}\n\n"
 
         json_end = json.dumps({"status": "end"})
         yield f"data: {json_end}\n\n"
 
-    return Response(stream(response.response), mimetype="text/event-stream")
+    return Response(stream_with_context(stream()), mimetype="text/event-stream")
 
 
 @bp.route("/clear", methods=["POST"])
