@@ -1,4 +1,5 @@
 import os
+from typing import Iterator
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -9,11 +10,11 @@ from openai.types.responses import (
     ResponseOutputText,
 )
 
-from app.chat_client import ChatClient, ChatResponse
+from app.chat_client import ChatClient, ChatResponse, ToolCallResponse
 
 
 @pytest.fixture
-def chat_client() -> ChatClient:
+def chat_client() -> Iterator[ChatClient]:
     """Fixture to provide a ChatClient instance with a mocked OpenAI client."""
     with patch("openai.OpenAI") as mock_openai_class:
         mock_openai_instance = mock_openai_class.return_value
@@ -77,7 +78,9 @@ def test_get_chat_completion_no_tool_calls(chat_client: ChatClient) -> None:
     mock_spotify_client = MagicMock()
 
     # Act
-    result = chat_client.get_chat_completion(conversation_history, mock_spotify_client)
+    result = next(
+        chat_client.get_chat_completion(conversation_history, mock_spotify_client)
+    )
 
     # Assert
     assert isinstance(result, ChatResponse)
@@ -126,13 +129,19 @@ def test_get_chat_completion_with_tool_call(chat_client: ChatClient) -> None:
     ]
 
     # Act
-    result = chat_client.get_chat_completion(conversation_history, mock_spotify_client)
+    generator = chat_client.get_chat_completion(
+        conversation_history, mock_spotify_client
+    )
+    tool_call_response = next(generator)
+    chat_response = next(generator)
 
     # Assert
-    assert isinstance(result, ChatResponse)
-    assert result.response == "Here are your playlists."
+    assert isinstance(tool_call_response, ToolCallResponse)
+    assert tool_call_response.function_name == "get_my_playlists"
+    assert isinstance(chat_response, ChatResponse)
+    assert chat_response.response == "Here are your playlists."
     assert (
-        len(result.conversation_history) == 4
+        len(chat_response.conversation_history) == 4
     )  # user, assistant (tool), function, assistant (text)
     assert chat_client.client.responses.create.call_count == 2
     mock_spotify_client.get_user_playlists.assert_called_once()
@@ -146,9 +155,14 @@ def test_get_chat_completion_api_error(chat_client: ChatClient) -> None:
     mock_spotify_client = MagicMock()
 
     # Act
-    result = chat_client.get_chat_completion(conversation_history, mock_spotify_client)
+    generator = chat_client.get_chat_completion(
+        conversation_history, mock_spotify_client
+    )
+    with pytest.raises(StopIteration) as excinfo:
+        next(generator)
 
     # Assert
+    result = excinfo.value.value
     assert isinstance(result, ChatResponse)
     assert "I'm sorry" in result.response
     assert len(result.conversation_history) == 1  # Original history is preserved
@@ -193,13 +207,19 @@ def test_create_playlist_tool_call(chat_client: ChatClient) -> None:
     mock_spotify_client.create_playlist.return_value = "new_playlist_id"
 
     # Act
-    result = chat_client.get_chat_completion(conversation_history, mock_spotify_client)
+    generator = chat_client.get_chat_completion(
+        conversation_history, mock_spotify_client
+    )
+    tool_call_response = next(generator)
+    chat_response = next(generator)
 
     # Assert
-    assert isinstance(result, ChatResponse)
-    assert result.response == "Playlist created."
+    assert isinstance(tool_call_response, ToolCallResponse)
+    assert tool_call_response.function_name == "create_playlist"
+    assert isinstance(chat_response, ChatResponse)
+    assert chat_response.response == "Playlist created."
     assert (
-        len(result.conversation_history) == 4
+        len(chat_response.conversation_history) == 4
     )  # user, assistant (tool), function, assistant (text)
     assert chat_client.client.responses.create.call_count == 2
     mock_spotify_client.create_playlist.assert_called_once_with(
