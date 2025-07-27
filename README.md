@@ -1,5 +1,7 @@
 # Flask Chatbot
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+
 This project provides a Flask-based chatbot that integrates with OpenAI's ChatGPT API
 and the Spotify API to generate curated playlists based on user prompts.
 
