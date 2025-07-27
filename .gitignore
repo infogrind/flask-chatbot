@@ -12,3 +12,4 @@ flask.log
 
 .env
 .spotify_cache/
+instance/

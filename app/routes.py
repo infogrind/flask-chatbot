@@ -20,6 +20,12 @@ from openai.types.responses import (
 from spotipy.oauth2 import SpotifyOAuth
 
 from app.chat_client import ChatClient, ChatResponse, ToolCallResponse
+from app.database import (
+    create_conversation,
+    delete_conversation,
+    get_conversation,
+    update_conversation,
+)
 from app.spotify_client import SpotifyClient
 
 logger = logging.getLogger(__name__)
@@ -43,8 +49,14 @@ def get_spotify_auth_manager():
 @bp.route("/", methods=["GET"])
 def index():
     """Main chat page."""
-    if "conversation" not in session:
-        session["conversation"] = []
+    if "conversation_id" not in session:
+        session["conversation_id"] = str(uuid.uuid4())
+        create_conversation(session["conversation_id"], [])
+
+    conversation_history = get_conversation(session["conversation_id"])
+    if conversation_history is None:
+        create_conversation(session["conversation_id"], [])
+        conversation_history = get_conversation(session["conversation_id"])
 
     auth_manager = get_spotify_auth_manager()
     token_info = auth_manager.cache_handler.get_cached_token()
@@ -52,7 +64,7 @@ def index():
 
     return render_template(
         "index.html",
-        conversation=session["conversation"],
+        conversation=conversation_history,
         is_spotify_connected=is_spotify_connected,
     )
 
@@ -84,13 +96,15 @@ def chat():
     if not query:
         return jsonify({"error": "Query is required"}), 400
 
-    conversation_history: ResponseInputParam = session["conversation"]
+    conversation_id = session["conversation_id"]
+    conversation_history: ResponseInputParam = get_conversation(conversation_id)
     conversation_history.append(
         {
             "role": "user",
             "content": query,
         }
     )
+    update_conversation(conversation_id, conversation_history)
 
     auth_manager = get_spotify_auth_manager()
     spotify_client = SpotifyClient(auth_manager=auth_manager)
@@ -104,13 +118,7 @@ def chat():
             logger.info("Got completion response")
             match response:
                 case ChatResponse(history, response):
-                    session["conversation"] = history
-                    session.modified = True
-
-                    # FIXME: Updating the session has no effect here, as we are
-                    # only returning server side events from now on. the updated
-                    # session will not be returned to the client.
-
+                    update_conversation(conversation_id, history)
                     data = {"response": response}
                     json_data = json.dumps(data)
                     yield f"data: {json_data}\n\n"
@@ -128,6 +136,8 @@ def chat():
 
 @bp.route("/clear", methods=["POST"])
 def clear_chat():
-    """Clears the conversation history from the session."""
-    session.pop("conversation", None)
+    """Clears the conversation history from the database and session."""
+    conversation_id = session.pop("conversation_id", None)
+    if conversation_id:
+        delete_conversation(conversation_id)
     return jsonify({"status": "ok"})
