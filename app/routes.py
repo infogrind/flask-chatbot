@@ -107,6 +107,10 @@ def chat():
                     session["conversation"] = history
                     session.modified = True
 
+                    # FIXME: Updating the session has no effect here, as we are
+                    # only returning server side events from now on. the updated
+                    # session will not be returned to the client.
+
                     data = {"response": response}
                     json_data = json.dumps(data)
                     yield f"data: {json_data}\n\n"
