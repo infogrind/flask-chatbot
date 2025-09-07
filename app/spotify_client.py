@@ -117,9 +117,7 @@ class SpotifyClient:
         Returns:
             A list of songs, each a dictionary with song details.
         """
-        encoded_title = urllib.parse.quote(title)
-        encoded_artist = urllib.parse.quote(artist)
-        query = f"track:{encoded_title} {encoded_artist}"
+        query = f'track:"{title}" "{artist}"'
         logger.info(f"Searching songs with query '{query}'.")
         results = self.client.search(q=query, type="track", limit=limit)
         if results:
