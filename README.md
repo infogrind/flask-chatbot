@@ -5,6 +5,8 @@
 This project provides a Flask-based chatbot that integrates with OpenAI's ChatGPT API
 and the Spotify API to generate curated playlists based on user prompts.
 
+<img width="827" height="886" alt="Screenshot 2025-09-07 at 06 45 17" src="https://github.com/user-attachments/assets/6904aea9-d946-4a3b-ac27-6cd04507d77d" />
+
 ## Prerequisites
 
 - Python 3.13+
