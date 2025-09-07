@@ -7,10 +7,8 @@ and the Spotify API to generate curated playlists based on user prompts.
 
 ## Prerequisites
 
-```bash
-Python 3.13+
-`uv` tool ([docs](https://docs.astral.sh/uv/))
-```
+- Python 3.13+
+- `uv` tool ([docs](https://docs.astral.sh/uv/))
 
 ## Installation
 
