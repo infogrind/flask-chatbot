@@ -1,4 +1,4 @@
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, call, patch
 
 from app.spotify_client import SpotifyClient
 
@@ -174,3 +174,64 @@ def test_search_songs_with_special_characters():
             type="track",
             limit=5,
         )
+
+
+def _playlist(playlist_id: str, owner: str) -> dict:
+    return {
+        "id": playlist_id,
+        "owner": {"id": owner},
+        "name": playlist_id,
+        "description": "",
+        "tracks": {"total": 1},
+    }
+
+
+def test_get_user_playlists_paginates_and_fetches_user_once():
+    # Arrange
+    with patch("spotipy.Spotify") as mock_spotify:
+        spotify = mock_spotify.return_value
+        spotify.me.return_value = {"id": "me"}
+        spotify.current_user_playlists.return_value = {
+            "items": [_playlist("a", "me"), _playlist("b", "someone_else")],
+            "next": "page2",
+        }
+        spotify.next.return_value = {"items": [_playlist("c", "me")], "next": None}
+        client = SpotifyClient(auth_manager=MagicMock())
+
+        # Act
+        playlists = client.get_user_playlists()
+
+        # Assert
+        assert [p["playlist_id"] for p in playlists] == ["a", "c"]
+        spotify.me.assert_called_once()
+
+
+def test_create_playlist_adds_tracks_in_batches_of_100():
+    # Arrange
+    with patch("spotipy.Spotify") as mock_spotify:
+        spotify = mock_spotify.return_value
+        spotify.me.return_value = {"id": "me"}
+        spotify.user_playlist_create.return_value = {"id": "new"}
+        client = SpotifyClient(auth_manager=MagicMock())
+        track_uris = [f"spotify:track:{i}" for i in range(150)]
+
+        # Act
+        client.create_playlist("Big", "Many tracks", track_uris)
+
+        # Assert
+        assert spotify.playlist_add_items.call_args_list == [
+            call("new", track_uris[:100]),
+            call("new", track_uris[100:]),
+        ]
+
+
+def test_search_songs_clamps_limit_to_spotify_range():
+    with patch("spotipy.Spotify") as mock_spotify:
+        spotify = mock_spotify.return_value
+        spotify.search.return_value = {"tracks": {"items": []}}
+        client = SpotifyClient(auth_manager=MagicMock())
+
+        client.search_songs("t", "a", limit=0)
+        client.search_songs("t", "a", limit=500)
+
+        assert [c.kwargs["limit"] for c in spotify.search.call_args_list] == [1, 50]
