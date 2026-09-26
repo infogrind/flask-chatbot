@@ -301,7 +301,8 @@ explicitly confirms that you can do it.
                 logger.debug(f"API response:\n{pformat(response)}")
 
                 if not response.output:
-                    return ChatResponse(conversation_history, "No output in response")
+                    yield ChatResponse(conversation_history, "No output in response")
+                    return
 
                 if not any(
                     isinstance(o, ResponseFunctionToolCall) for o in response.output
@@ -340,7 +341,7 @@ explicitly confirms that you can do it.
 
         except Exception:
             logger.error("Exception occurred", exc_info=True)
-            return ChatResponse(
+            yield ChatResponse(
                 conversation_history,
                 "I'm sorry, I'm having trouble connecting to the chat service.",
             )
