@@ -16,7 +16,6 @@ def create_app(test_config: Mapping[str, Any] | None = None) -> Flask:
     """
     app = Flask(__name__, instance_relative_config=True)
     app.config.from_object(Config)
-    app.secret_key = "supersecretkey"  # TODO: Replace with a real secret key
 
     # ensure the instance folder exists
     os.makedirs(app.instance_path, exist_ok=True)

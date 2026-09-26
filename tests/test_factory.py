@@ -16,3 +16,10 @@ def test_create_app_accepts_test_config(tmp_path: Path) -> None:
 
 def test_fixture_app_does_not_use_instance_database(app: Flask) -> None:
     assert not app.config["DATABASE"].startswith(app.instance_path)
+
+
+def test_secret_key_is_not_hardcoded() -> None:
+    app = create_app({"TESTING": True})
+
+    assert app.secret_key
+    assert app.secret_key != "supersecretkey"

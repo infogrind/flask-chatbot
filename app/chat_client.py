@@ -180,31 +180,32 @@ class ChatClient:
 
     def perform_function_call(
         self,
+        spotify_client: SpotifyClient,
         name: str,
         call_id: str,
         arguments: str,
     ) -> FunctionCallOutput:
         if name == "get_my_playlists":
-            output = self.spotify_client.get_user_playlists()
+            output = spotify_client.get_user_playlists()
         elif name == "get_liked_songs":
-            output = self.spotify_client.get_liked_songs()
+            output = spotify_client.get_liked_songs()
         elif name == "get_playlist_contents":
             args = json.loads(arguments)
             playlist_id = args["playlist_id"]
-            output = self.spotify_client.get_playlist_contents(playlist_id)
+            output = spotify_client.get_playlist_contents(playlist_id)
         elif name == "create_playlist":
             args = json.loads(arguments)
             name = args["name"]
             description = args["description"]
             track_uris = args["track_uris"]
             logger.info(f"Creating playlist '{name}' with {len(track_uris)} tracks.")
-            output = self.spotify_client.create_playlist(name, description, track_uris)
+            output = spotify_client.create_playlist(name, description, track_uris)
         elif name == "search_songs":
             args = json.loads(arguments)
             title = args["title"]
             artist = args["artist"]
             limit = args.get("limit", 5)
-            output = self.spotify_client.search_songs(title, artist, limit)
+            output = spotify_client.search_songs(title, artist, limit)
         else:
             output = {"error": f"Undefined function: '{name}'"}
         return {
@@ -215,6 +216,7 @@ class ChatClient:
 
     def process_tool_calls(
         self,
+        spotify_client: SpotifyClient,
         outputs: List[ResponseOutputItem],
         conversation_history: ResponseInputParam,
     ):
@@ -232,7 +234,9 @@ class ChatClient:
                     if id:
                         function_call["id"] = id
                     function_call_result: FunctionCallOutput = (
-                        self.perform_function_call(name, call_id, arguments)
+                        self.perform_function_call(
+                            spotify_client, name, call_id, arguments
+                        )
                     )
                     # Only save function call if result was successfully obtained,
                     # otherwise we'll have a corrupted conversation context.
@@ -246,11 +250,11 @@ class ChatClient:
         return conversation_history
 
     def get_chat_completion(
-        self, conversation_history: ResponseInputParam, spotify_client
+        self,
+        conversation_history: ResponseInputParam,
+        spotify_client: SpotifyClient,
     ) -> Iterable[ChatStreamResponse]:
         """Gets a chat completion from the OpenAI API, handling tool calls."""
-
-        self.spotify_client: SpotifyClient = spotify_client
 
         system_prompt: EasyInputMessageParam = {
             "role": "system",
@@ -335,7 +339,7 @@ explicitly confirms that you can do it.
                                         )
 
                 conversation_history = self.process_tool_calls(
-                    response.output, conversation_history
+                    spotify_client, response.output, conversation_history
                 )
                 # Loop
 

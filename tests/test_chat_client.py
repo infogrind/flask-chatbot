@@ -237,3 +237,48 @@ def test_create_playlist_tool_call(chat_client: ChatClient) -> None:
     mock_spotify_client.create_playlist.assert_called_once_with(
         "New Playlist", "A new playlist", ["spotify:track:123"]
     )
+
+
+def test_concurrent_completions_use_their_own_spotify_client(
+    chat_client: ChatClient,
+) -> None:
+    """Interleaved requests must not run tool calls against another user's account."""
+    # Arrange
+    tool_call_response = MagicMock(spec=Response)
+    tool_call_response.output = [
+        ResponseFunctionToolCall(
+            call_id="call_1",
+            name="get_my_playlists",
+            arguments="{}",
+            type="function_call",
+        )
+    ]
+    text_response = MagicMock(spec=Response)
+    text_response.output = [
+        ResponseOutputMessage(
+            id="msg",
+            content=[ResponseOutputText(text="ok", type="output_text", annotations=[])],
+            type="message",
+            role="assistant",
+            status="completed",
+        )
+    ]
+    chat_client.client.responses.create.side_effect = [
+        tool_call_response,
+        tool_call_response,
+        text_response,
+        text_response,
+    ]
+    spotify_a, spotify_b = MagicMock(), MagicMock()
+    stream_a = chat_client.get_chat_completion([], spotify_a)
+    stream_b = chat_client.get_chat_completion([], spotify_b)
+
+    # Act
+    next(stream_a)
+    next(stream_b)
+    list(stream_a)
+    list(stream_b)
+
+    # Assert
+    spotify_a.get_user_playlists.assert_called_once()
+    spotify_b.get_user_playlists.assert_called_once()
