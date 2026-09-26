@@ -1,18 +1,17 @@
 import json
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
-from app import create_app
+from flask.testing import FlaskClient
+
 from app.chat_client import ChatResponse
 
 
 @patch("app.routes.chat_client")
-def test_chat_get(mock_chat_client) -> None:
+def test_chat_get(mock_chat_client: MagicMock, client: FlaskClient) -> None:
     # Arrange
     mock_chat_client.get_chat_completion.return_value = [
         ChatResponse(conversation_history=[], response="Test response")
     ]
-    app = create_app()
-    client = app.test_client()
 
     # Act
     with client:
@@ -29,7 +28,6 @@ def test_chat_get(mock_chat_client) -> None:
     # response in the JSON data.
     elements = response.data.rstrip(b"\n").split(b"\n\n")
     assert len(elements) == 2
-    print("Hundwyler: %s" % elements)
     dicts = [
         json.loads(item.decode().removeprefix("data: ").strip()) for item in elements
     ]
