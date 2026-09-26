@@ -1,11 +1,11 @@
 import json
 import logging
-import os
 import uuid
 
 from flask import (
     Blueprint,
     Response,
+    current_app,
     jsonify,
     redirect,
     render_template,
@@ -17,7 +17,7 @@ from flask import (
 from openai.types.responses import (
     ResponseInputParam,
 )
-from spotipy.oauth2 import SpotifyOAuth
+from spotipy.oauth2 import CacheFileHandler, SpotifyOAuth
 
 from app.chat_client import ChatClient, ChatResponse, ToolCallResponse
 from app.database import (
@@ -34,15 +34,19 @@ bp = Blueprint("routes", __name__)
 chat_client = ChatClient()
 
 SCOPE = "playlist-read-private user-library-read playlist-modify-public"
+SPOTIFY_CACHE_DIR = ".spotify_cache"
 
 
-def get_spotify_auth_manager():
+def get_spotify_auth_manager() -> SpotifyOAuth:
+    # Always use a per-session token cache: with `cache_path=None`, spotipy falls
+    # back to a single `.cache` file shared by every session.
+    cache_id = session.setdefault("spotify_cache_id", str(uuid.uuid4()))
     return SpotifyOAuth(
-        client_id=os.getenv("SPOTIFY_CLIENT_ID"),
-        client_secret=os.getenv("SPOTIFY_CLIENT_SECRET"),
+        client_id=current_app.config["SPOTIFY_CLIENT_ID"],
+        client_secret=current_app.config["SPOTIFY_CLIENT_SECRET"],
         redirect_uri=url_for("routes.spotify_callback", _external=True),
         scope=SCOPE,
-        cache_path=session.get("spotify_cache_path"),
+        cache_handler=CacheFileHandler(cache_path=f"{SPOTIFY_CACHE_DIR}/{cache_id}"),
     )
 
 
@@ -79,10 +83,6 @@ def index():
 @bp.route("/spotify/login")
 def spotify_login():
     """Redirects to Spotify for authentication."""
-    if "spotify_cache_id" not in session:
-        session["spotify_cache_id"] = str(uuid.uuid4())
-    # Use a unique cache path for each user's session
-    session["spotify_cache_path"] = f".spotify_cache/{session['spotify_cache_id']}"
     auth_manager = get_spotify_auth_manager()
     return redirect(auth_manager.get_authorize_url())
 

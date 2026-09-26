@@ -62,3 +62,14 @@ def test_chat_with_stale_conversation_id(
     assert response.status_code == 200
     history = mock_chat_client.get_chat_completion.call_args.args[0]
     assert history == [{"role": "user", "content": "hello"}]
+
+
+def test_spotify_token_cache_is_per_session(client: FlaskClient) -> None:
+    """Without a login, spotipy must not fall back to its shared `.cache` file."""
+    with patch("app.routes.SpotifyOAuth") as mock_oauth:
+        mock_oauth.return_value.validate_token.return_value = None
+        client.get("/")
+
+    cache_path = mock_oauth.call_args.kwargs["cache_handler"].cache_path
+    with client.session_transaction() as sess:
+        assert cache_path == f".spotify_cache/{sess['spotify_cache_id']}"
