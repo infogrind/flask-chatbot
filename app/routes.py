@@ -46,17 +46,24 @@ def get_spotify_auth_manager():
     )
 
 
+def load_or_create_conversation() -> tuple[str, ResponseInputParam]:
+    """Returns the session's conversation, creating it if it doesn't exist.
+
+    Handles both a missing session entry and a stale ID whose database row is
+    gone (e.g. after `flask init-db`).
+    """
+    conversation_id = session.setdefault("conversation_id", str(uuid.uuid4()))
+    conversation_history = get_conversation(conversation_id)
+    if conversation_history is None:
+        conversation_history = []
+        create_conversation(conversation_id, conversation_history)
+    return conversation_id, conversation_history
+
+
 @bp.route("/", methods=["GET"])
 def index():
     """Main chat page."""
-    if "conversation_id" not in session:
-        session["conversation_id"] = str(uuid.uuid4())
-        create_conversation(session["conversation_id"], [])
-
-    conversation_history = get_conversation(session["conversation_id"])
-    if conversation_history is None:
-        create_conversation(session["conversation_id"], [])
-        conversation_history = get_conversation(session["conversation_id"])
+    _, conversation_history = load_or_create_conversation()
 
     auth_manager = get_spotify_auth_manager()
     token_info = auth_manager.cache_handler.get_cached_token()
@@ -96,8 +103,7 @@ def chat():
     if not query:
         return jsonify({"error": "Query is required"}), 400
 
-    conversation_id = session["conversation_id"]
-    conversation_history: ResponseInputParam = get_conversation(conversation_id)
+    conversation_id, conversation_history = load_or_create_conversation()
     conversation_history.append(
         {
             "role": "user",
