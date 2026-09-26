@@ -1,4 +1,3 @@
-import os
 from typing import Iterator
 from unittest.mock import MagicMock, patch
 
@@ -14,25 +13,19 @@ from app.chat_client import ChatClient, ChatResponse, ToolCallResponse
 
 
 @pytest.fixture
-def chat_client() -> Iterator[ChatClient]:
+def chat_client(monkeypatch: pytest.MonkeyPatch) -> Iterator[ChatClient]:
     """Fixture to provide a ChatClient instance with a mocked OpenAI client."""
-    with patch("openai.OpenAI") as mock_openai_class:
-        mock_openai_instance = mock_openai_class.return_value
-        # This is the key change: we are mocking the `create` method on the `responses` attribute
-        mock_create = MagicMock()
-        mock_openai_instance.responses.create = mock_create
-
-        os.environ["OPENAI_API_KEY"] = "test_api_key"
+    monkeypatch.setenv("OPENAI_API_KEY", "test_api_key")
+    with patch("app.chat_client.OpenAI"):
         client = ChatClient()
-        client.client.responses.create = mock_create  # And we assign it here
+        client.client.responses.create = MagicMock()
         yield client
-        del os.environ["OPENAI_API_KEY"]
 
 
-def test_chat_client_initialization() -> None:
+def test_chat_client_initialization(monkeypatch: pytest.MonkeyPatch) -> None:
     """Test that the ChatClient initializes correctly."""
     # Arrange
-    os.environ["OPENAI_API_KEY"] = "test_api_key"
+    monkeypatch.setenv("OPENAI_API_KEY", "test_api_key")
 
     # Act
     client = ChatClient()
@@ -40,14 +33,14 @@ def test_chat_client_initialization() -> None:
     # Assert
     assert client.client is not None
     assert len(client.tools) > 0
-    del os.environ["OPENAI_API_KEY"]
 
 
-def test_chat_client_initialization_no_api_key() -> None:
+def test_chat_client_initialization_no_api_key(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     """Test that the ChatClient raises an error if the API key is not set."""
     # Arrange
-    if "OPENAI_API_KEY" in os.environ:
-        del os.environ["OPENAI_API_KEY"]
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
 
     # Act & Assert
     with pytest.raises(
