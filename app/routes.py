@@ -31,10 +31,22 @@ from app.spotify_client import SpotifyClient
 logger = logging.getLogger(__name__)
 
 bp = Blueprint("routes", __name__)
-chat_client = ChatClient()
 
 SCOPE = "playlist-read-private user-library-read playlist-modify-public"
 SPOTIFY_CACHE_DIR = ".spotify_cache"
+
+
+def get_chat_client() -> ChatClient:
+    """Returns the app's `ChatClient`, created on first use.
+
+    Created lazily so that importing this module (e.g. for `flask init-db`) does
+    not require `OPENAI_API_KEY`.
+    """
+    if "chat_client" not in current_app.extensions:
+        current_app.extensions["chat_client"] = ChatClient(
+            current_app.config["OPENAI_API_KEY"]
+        )
+    return current_app.extensions["chat_client"]
 
 
 def get_spotify_auth_manager() -> SpotifyOAuth:
@@ -97,7 +109,6 @@ def spotify_callback():
 
 @bp.route("/chat")
 def chat():
-    logger.info("Called /chat")
     """Handles chat submissions, including tool calls."""
     query = request.args.get("query")
     if not query:
@@ -114,6 +125,7 @@ def chat():
 
     auth_manager = get_spotify_auth_manager()
     spotify_client = SpotifyClient(auth_manager=auth_manager)
+    chat_client = get_chat_client()
 
     def stream():
         logger.info("Starting chat response stream")

@@ -1,4 +1,7 @@
-from typing import Iterator
+import os
+import subprocess
+import sys
+from collections.abc import Iterator
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -9,44 +12,40 @@ from openai.types.responses import (
     ResponseOutputText,
 )
 
-from app.chat_client import ChatClient, ChatResponse, ToolCallResponse
+from app.chat_client import (
+    MAX_TOOL_ROUNDS,
+    ChatClient,
+    ChatResponse,
+    ToolCallResponse,
+)
 
 
 @pytest.fixture
-def chat_client(monkeypatch: pytest.MonkeyPatch) -> Iterator[ChatClient]:
+def chat_client() -> Iterator[ChatClient]:
     """Fixture to provide a ChatClient instance with a mocked OpenAI client."""
-    monkeypatch.setenv("OPENAI_API_KEY", "test_api_key")
     with patch("app.chat_client.OpenAI"):
-        client = ChatClient()
+        client = ChatClient("test_api_key")
         client.client.responses.create = MagicMock()
         yield client
 
 
-def test_chat_client_initialization(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_chat_client_initialization() -> None:
     """Test that the ChatClient initializes correctly."""
-    # Arrange
-    monkeypatch.setenv("OPENAI_API_KEY", "test_api_key")
-
     # Act
-    client = ChatClient()
+    client = ChatClient("test_api_key")
 
     # Assert
     assert client.client is not None
     assert len(client.tools) > 0
 
 
-def test_chat_client_initialization_no_api_key(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
+def test_chat_client_initialization_no_api_key() -> None:
     """Test that the ChatClient raises an error if the API key is not set."""
-    # Arrange
-    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
-
     # Act & Assert
     with pytest.raises(
         ValueError, match="OPENAI_API_KEY environment variable not set."
     ):
-        ChatClient()
+        ChatClient("")
 
 
 def test_get_chat_completion_no_tool_calls(chat_client: ChatClient) -> None:
@@ -235,7 +234,9 @@ def test_create_playlist_tool_call(chat_client: ChatClient) -> None:
     )  # user, assistant (tool), function, assistant (text)
     assert chat_client.client.responses.create.call_count == 2
     mock_spotify_client.create_playlist.assert_called_once_with(
-        "New Playlist", "A new playlist", ["spotify:track:123"]
+        name="New Playlist",
+        description="A new playlist",
+        track_uris=["spotify:track:123"],
     )
 
 
@@ -282,3 +283,103 @@ def test_concurrent_completions_use_their_own_spotify_client(
     # Assert
     spotify_a.get_user_playlists.assert_called_once()
     spotify_b.get_user_playlists.assert_called_once()
+
+
+def _tool_call_response(name: str = "get_my_playlists") -> MagicMock:
+    response = MagicMock(spec=Response)
+    response.output = [
+        ResponseFunctionToolCall(
+            call_id="call_1", name=name, arguments="{}", type="function_call"
+        )
+    ]
+    return response
+
+
+def _text_response(text: str) -> MagicMock:
+    response = MagicMock(spec=Response)
+    response.output = [
+        ResponseOutputMessage(
+            id="msg",
+            content=[ResponseOutputText(text=text, type="output_text", annotations=[])],
+            type="message",
+            role="assistant",
+            status="completed",
+        )
+    ]
+    return response
+
+
+def test_failing_tool_call_is_reported_to_model(chat_client: ChatClient) -> None:
+    """A Spotify error is passed back to the model instead of aborting the stream."""
+    # Arrange
+    chat_client.client.responses.create.side_effect = [
+        _tool_call_response(),
+        _text_response("Sorry, Spotify failed."),
+    ]
+    spotify_client = MagicMock()
+    spotify_client.get_user_playlists.side_effect = RuntimeError("token expired")
+
+    # Act
+    results = list(chat_client.get_chat_completion([], spotify_client))
+
+    # Assert
+    assert results[-1] == ChatResponse(
+        results[-1].conversation_history, "Sorry, Spotify failed."
+    )
+    call_output = results[-1].conversation_history[1]
+    assert call_output["type"] == "function_call_output"
+    assert "token expired" in call_output["output"]
+
+
+def test_unknown_tool_is_reported_to_model(chat_client: ChatClient) -> None:
+    # Arrange
+    chat_client.client.responses.create.side_effect = [
+        _tool_call_response("no_such_tool"),
+        _text_response("done"),
+    ]
+
+    # Act
+    results = list(chat_client.get_chat_completion([], MagicMock()))
+
+    # Assert
+    call_output = results[-1].conversation_history[1]
+    assert "no_such_tool" in call_output["output"]
+
+
+def test_agent_loop_is_bounded(chat_client: ChatClient) -> None:
+    """A model that never stops calling tools must not loop forever."""
+    # Arrange
+    chat_client.client.responses.create.side_effect = lambda **_: _tool_call_response()
+
+    # Act
+    results = list(chat_client.get_chat_completion([], MagicMock()))
+
+    # Assert
+    assert chat_client.client.responses.create.call_count == MAX_TOOL_ROUNDS
+    assert isinstance(results[-1], ChatResponse)
+
+
+def test_unknown_output_types_are_not_shown_to_user(chat_client: ChatClient) -> None:
+    # Arrange
+    response = _text_response("Hi")
+    response.output.append(MagicMock())
+    chat_client.client.responses.create.return_value = response
+
+    # Act
+    results = list(chat_client.get_chat_completion([], MagicMock()))
+
+    # Assert
+    assert [r.response for r in results] == ["Hi"]
+
+
+def test_importing_routes_does_not_require_api_key() -> None:
+    """`flask init-db` etc. must work without `OPENAI_API_KEY`."""
+    env = {**os.environ, "OPENAI_API_KEY": ""}
+    result = subprocess.run(
+        [sys.executable, "-c", "import app.routes"],
+        env=env,
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode == 0, result.stderr
