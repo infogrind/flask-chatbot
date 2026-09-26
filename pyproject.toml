@@ -12,6 +12,14 @@ dependencies = [
     "spotipy>=2.25.1",
 ]
 
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+# The code lives in `app/` and `config.py`, not in a `flask_chatbot` package
+only-include = ["app", "config.py"]
+
 [tool.ruff]
 target-version = "py313"
 
