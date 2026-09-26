@@ -1,11 +1,19 @@
 import logging
 import os
+from collections.abc import Mapping
+from typing import Any
+
 from flask import Flask
+
 from config import Config
 
 
-def create_app() -> Flask:
-    """Create and configure the Flask application."""
+def create_app(test_config: Mapping[str, Any] | None = None) -> Flask:
+    """Create and configure the Flask application.
+
+    `test_config` overrides the default configuration, e.g. to point `DATABASE`
+    at a temporary file in tests.
+    """
     app = Flask(__name__, instance_relative_config=True)
     app.config.from_object(Config)
     app.secret_key = "supersecretkey"  # TODO: Replace with a real secret key
@@ -16,6 +24,8 @@ def create_app() -> Flask:
     app.config.from_mapping(
         DATABASE=os.path.join(app.instance_path, "flask-chatbot.sqlite"),
     )
+    if test_config is not None:
+        app.config.from_mapping(test_config)
 
     # Configure logging
     logging.basicConfig(
