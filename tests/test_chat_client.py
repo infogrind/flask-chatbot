@@ -148,18 +148,37 @@ def test_get_chat_completion_api_error(chat_client: ChatClient) -> None:
     mock_spotify_client = MagicMock()
 
     # Act
-    generator = chat_client.get_chat_completion(
-        conversation_history, mock_spotify_client
+    results = list(
+        chat_client.get_chat_completion(conversation_history, mock_spotify_client)
     )
-    with pytest.raises(StopIteration) as excinfo:
-        next(generator)
 
     # Assert
-    result = excinfo.value.value
+    assert len(results) == 1
+    result = results[0]
     assert isinstance(result, ChatResponse)
     assert "I'm sorry" in result.response
     assert len(result.conversation_history) == 1  # Original history is preserved
     chat_client.client.responses.create.assert_called_once()
+
+
+def test_get_chat_completion_empty_output(chat_client: ChatClient) -> None:
+    """An empty model output is reported to the user instead of being dropped."""
+    # Arrange
+    mock_response = MagicMock(spec=Response)
+    mock_response.output = []
+    chat_client.client.responses.create.return_value = mock_response
+
+    # Act
+    results = list(
+        chat_client.get_chat_completion(
+            [{"role": "user", "content": "Hello"}], MagicMock()
+        )
+    )
+
+    # Assert
+    assert len(results) == 1
+    assert isinstance(results[0], ChatResponse)
+    assert results[0].response
 
 
 def test_create_playlist_tool_call(chat_client: ChatClient) -> None:
