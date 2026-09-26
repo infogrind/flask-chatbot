@@ -1,6 +1,7 @@
 import json
 import logging
 import uuid
+from collections.abc import Iterator
 
 from flask import (
     Blueprint,
@@ -14,9 +15,8 @@ from flask import (
     stream_with_context,
     url_for,
 )
-from openai.types.responses import (
-    ResponseInputParam,
-)
+from openai.types.responses import ResponseInputParam
+from werkzeug.wrappers import Response as BaseResponse
 from spotipy.oauth2 import CacheFileHandler, SpotifyOAuth
 
 from app.chat_client import ChatClient, ChatResponse, ToolCallResponse
@@ -77,7 +77,7 @@ def load_or_create_conversation() -> tuple[str, ResponseInputParam]:
 
 
 @bp.route("/", methods=["GET"])
-def index():
+def index() -> str:
     """Main chat page."""
     _, conversation_history = load_or_create_conversation()
 
@@ -93,22 +93,23 @@ def index():
 
 
 @bp.route("/spotify/login")
-def spotify_login():
+def spotify_login() -> BaseResponse:
     """Redirects to Spotify for authentication."""
     auth_manager = get_spotify_auth_manager()
     return redirect(auth_manager.get_authorize_url())
 
 
 @bp.route("/spotify/callback")
-def spotify_callback():
+def spotify_callback() -> BaseResponse:
     """Handles the callback from Spotify."""
-    auth_manager = get_spotify_auth_manager()
-    auth_manager.get_access_token(request.args.get("code"))
+    # Without a code (e.g. `?error=access_denied`), there is nothing to exchange
+    if code := request.args.get("code"):
+        get_spotify_auth_manager().get_access_token(code)
     return redirect(url_for("routes.index"))
 
 
 @bp.route("/chat")
-def chat():
+def chat() -> Response | tuple[Response, int]:
     """Handles chat submissions, including tool calls."""
     query = request.args.get("query")
     if not query:
@@ -127,7 +128,7 @@ def chat():
     spotify_client = SpotifyClient(auth_manager=auth_manager)
     chat_client = get_chat_client()
 
-    def stream():
+    def stream() -> Iterator[str]:
         logger.info("Starting chat response stream")
 
         for response in chat_client.get_chat_completion(
@@ -153,7 +154,7 @@ def chat():
 
 
 @bp.route("/clear", methods=["POST"])
-def clear_chat():
+def clear_chat() -> Response:
     """Clears the conversation history from the database and session."""
     conversation_id = session.pop("conversation_id", None)
     if conversation_id:
