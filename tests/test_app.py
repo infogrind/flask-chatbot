@@ -6,10 +6,10 @@ from flask.testing import FlaskClient
 from app.chat_client import ChatResponse
 
 
-@patch("app.routes.chat_client")
+@patch("app.routes.get_chat_client")
 def test_chat_get(mock_chat_client: MagicMock, client: FlaskClient) -> None:
     # Arrange
-    mock_chat_client.get_chat_completion.return_value = [
+    mock_chat_client.return_value.get_chat_completion.return_value = [
         ChatResponse(conversation_history=[], response="Test response")
     ]
 
@@ -33,14 +33,14 @@ def test_chat_get(mock_chat_client: MagicMock, client: FlaskClient) -> None:
     ]
     assert dicts[0]["response"] == "Test response"
     assert dicts[1]["status"] == "end"
-    mock_chat_client.get_chat_completion.assert_called_once()
+    mock_chat_client.return_value.get_chat_completion.assert_called_once()
 
 
-@patch("app.routes.chat_client")
+@patch("app.routes.get_chat_client")
 def test_chat_without_prior_index_visit(
     mock_chat_client: MagicMock, client: FlaskClient
 ) -> None:
-    mock_chat_client.get_chat_completion.return_value = []
+    mock_chat_client.return_value.get_chat_completion.return_value = []
 
     response = client.get("/chat?query=hello")
 
@@ -49,18 +49,18 @@ def test_chat_without_prior_index_visit(
         assert "conversation_id" in sess
 
 
-@patch("app.routes.chat_client")
+@patch("app.routes.get_chat_client")
 def test_chat_with_stale_conversation_id(
     mock_chat_client: MagicMock, client: FlaskClient
 ) -> None:
-    mock_chat_client.get_chat_completion.return_value = []
+    mock_chat_client.return_value.get_chat_completion.return_value = []
     with client.session_transaction() as sess:
         sess["conversation_id"] = "does-not-exist"
 
     response = client.get("/chat?query=hello")
 
     assert response.status_code == 200
-    history = mock_chat_client.get_chat_completion.call_args.args[0]
+    history = mock_chat_client.return_value.get_chat_completion.call_args.args[0]
     assert history == [{"role": "user", "content": "hello"}]
 
 

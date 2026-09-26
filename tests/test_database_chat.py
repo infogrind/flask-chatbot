@@ -29,7 +29,7 @@ def test_conversation_lifecycle(client, app: Flask):
         ]
     )
 
-    with patch("app.routes.chat_client", mock_chat_client):
+    with patch("app.routes.get_chat_client", return_value=mock_chat_client):
         # 1. Initial visit
         response = client.get("/")
         assert response.status_code == 200
