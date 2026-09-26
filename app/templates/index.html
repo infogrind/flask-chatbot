@@ -49,8 +49,14 @@
                 md = window.markdownit();
             } else {
                 console.warn('markdown-it not loaded. Falling back to plain text.');
-                // Create a dummy object that just returns the text as-is
-                md = { render: (text) => text };
+                // Escape the text so the innerHTML assignments below stay safe
+                md = {
+                    render: (text) => {
+                        const div = document.createElement('div');
+                        div.textContent = text;
+                        return div.innerHTML;
+                    }
+                };
             }
 
             function scrollToBottom() {
@@ -109,24 +115,29 @@
                 scrollToBottom();
 
                 // Clear input field
-                const messageToSend = inputField.value;
                 inputField.value = '';
 
                 try {
-                    console.log("Creating event source")
-                    const eventSource = new EventSource(`/chat?query=${query}`)
+                    const chatUrl = "{{ url_for('routes.chat') }}";
+                    const eventSource = new EventSource(
+                        `${chatUrl}?query=${encodeURIComponent(query)}`
+                    );
+                    // EventSource reconnects automatically after errors, which would
+                    // re-send the query. Close it and show an error instead.
+                    eventSource.onerror = () => {
+                      eventSource.close();
+                      loadingIndicator.textContent = 'Error: Could not get a response.';
+                      loadingIndicator.classList.remove('loading');
+                    };
+
                     eventSource.onmessage = (event) => {
-                      console.log("Received event")
                       const data = JSON.parse(event.data);
 
                       if (data.status === "end") {
-                        eventSource.close()
-                        console.log("Stream ended by server")
-                        return
+                        eventSource.close();
+                        loadingIndicator.remove();
+                        return;
                       }
-
-                      console.log("Data: " + data)
-
 
                       if (data?.tool_code) {
                         const toolCallMessage = document.createElement('div');
@@ -135,20 +146,19 @@
                         chatHistory.insertBefore(toolCallMessage, loadingIndicator);
                       }
                       else if (data?.response) {
-                        loadingIndicator.remove();
-
-                        // Add bot response to history
+                        // Add bot response above the loading indicator, which stays
+                        // until the server signals the end of the stream
                         const botMessage = document.createElement('div');
                         botMessage.className = 'message bot';
                         botMessage.innerHTML = md.render(data.response);
-                        chatHistory.appendChild(botMessage);
+                        chatHistory.insertBefore(botMessage, loadingIndicator);
 
                         // Scroll to bottom again
                         scrollToBottom();
                       } else {
-                        console.log("No usable information found in data.");
+                        console.warn("No usable information found in data.");
                       }
-                    }
+                    };
 
                 } catch (error) {
                     console.error('Error:', error);
