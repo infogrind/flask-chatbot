@@ -16,7 +16,7 @@ and the Spotify API to generate curated playlists based on user prompts.
 
 ```bash
 # Install dependencies and create a virtual environment
-uv lock --install
+uv sync
 ```
 
 ## Configuration
@@ -25,7 +25,7 @@ Copy `.env.example` to `.env` and set your environment variables:
 
 ```bash
 cp .env.example .env
-# Then edit .env to add your API keys
+# Then edit .env to add your API keys and a SECRET_KEY
 ```
 
 ## Running the application

@@ -73,3 +73,11 @@ def test_spotify_token_cache_is_per_session(client: FlaskClient) -> None:
     cache_path = mock_oauth.call_args.kwargs["cache_handler"].cache_path
     with client.session_transaction() as sess:
         assert cache_path == f".spotify_cache/{sess['spotify_cache_id']}"
+
+
+def test_spotify_callback_when_user_denies_access(client: FlaskClient) -> None:
+    with patch("app.routes.SpotifyOAuth") as mock_oauth:
+        response = client.get("/spotify/callback?error=access_denied")
+
+    assert response.status_code == 302
+    mock_oauth.return_value.get_access_token.assert_not_called()
