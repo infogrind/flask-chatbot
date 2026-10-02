@@ -187,3 +187,23 @@ def test_index_renders_text_of_block_based_history(tmp_path: Path) -> None:
     assert "Here is some jazz." in html
     assert "signature" not in html
     assert "tool_result" not in html
+
+
+def test_new_conversation_shows_welcome(client: FlaskClient) -> None:
+    html = client.get("/").get_data(as_text=True)
+
+    assert 'id="empty-state"' in html
+    assert "suggestion" in html
+
+
+def test_existing_conversation_hides_welcome(app: Flask) -> None:
+    client = app.test_client()
+    client.get("/")
+    with client.session_transaction() as sess:
+        conversation_id = sess["conversation_id"]
+    with app.app_context():
+        update_conversation(conversation_id, [{"role": "user", "content": "Hi"}])
+
+    html = client.get("/").get_data(as_text=True)
+
+    assert 'id="empty-state"' not in html
