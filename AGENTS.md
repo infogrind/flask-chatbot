@@ -6,10 +6,11 @@ symlinks to this file.
 
 ## Project Overview
 
-A Flask-based chatbot that uses the OpenAI API and the Spotify API to create
-curated playlists. The user chats (e.g. "Create a playlist with 20 songs
-representing early 20th century American jazz"); the model proposes songs and,
-on confirmation, creates the playlist in the user's Spotify account.
+A Flask-based chatbot that uses an LLM (Anthropic Claude or OpenAI) and the
+Spotify API to create curated playlists. The user chats (e.g. "Create a
+playlist with 20 songs representing early 20th century American jazz"); the
+model proposes songs and, on confirmation, creates the playlist in the user's
+Spotify account.
 
 Python 3.13+, dependencies managed with [`uv`](https://docs.astral.sh/uv/).
 
@@ -26,7 +27,7 @@ uv run flask init-db
 uv run pytest
 
 # Run a single test file or test
-uv run pytest tests/test_chat_client.py
+uv run pytest tests/test_anthropic_chat_client.py
 uv run pytest tests/test_app.py::test_name
 
 # Lint, auto-fix, and format (run before committing)
@@ -41,32 +42,48 @@ uv lock --upgrade            # upgrade all
 ## Architecture
 
 The app uses the Flask application-factory pattern: `create_app()` in
-`app/__init__.py` loads `Config` (from `config.py`, which reads `.env`),
-registers the `routes` blueprint, and initializes the database.
+`app/__init__.py` loads `Config` (from `config.py`, which reads `.env`), loads
+the LLM settings into `app.config["LLM"]`, registers the `routes` blueprint,
+and initializes the database.
+
+The LLM provider (`anthropic` or `openai`), its API key, and model are read by
+`app/llm_settings.py` from an XDG config file,
+`$XDG_CONFIG_HOME/flask-chatbot/config.toml` (default
+`~/.config/flask-chatbot/config.toml`; see `config.example.toml`). Keys fall
+back to `ANTHROPIC_API_KEY` / `OPENAI_API_KEY`. Tests set `XDG_CONFIG_HOME` to
+a temporary directory (autouse fixture in `tests/conftest.py`).
 
 Request flow for a chat message:
 
 1. `GET /chat` in `app/routes.py` appends the user query to the conversation
    history and returns a Server-Sent-Events stream (`text/event-stream`).
    The frontend (`app/templates/index.html`) consumes these events.
-2. `ChatClient.get_chat_completion()` (`app/chat_client.py`) runs an agentic
-   loop against the **OpenAI Responses API** (`client.responses.create`, not
-   the Chat Completions API): it yields `ChatResponse` (text for the UI) and
-   `ToolCallResponse` (tool-call notifications) dataclasses, executes tool
-   calls by dispatching to `SpotifyClient`, appends
-   `function_call`/`function_call_output` items to the history, and loops
-   until the model produces a final text response. The tool schemas (playlist
-   listing/reading, liked songs, song search, playlist creation) are defined
-   in `ChatClient.__init__`.
-3. `SpotifyClient` (`app/spotify_client.py`) wraps `spotipy` and handles
+1. `get_chat_completion()` of the configured `ChatClient` runs an agentic
+   loop: it yields `ChatResponse` (text for the UI) and `ToolCallResponse`
+   (tool-call notifications) dataclasses, executes tool calls via
+   `run_tool()`, which dispatches to `SpotifyClient`, appends to the history,
+   and loops (at most `MAX_TOOL_ROUNDS` times) until the model produces a final
+   text response. Provider-neutral parts (system prompt, `TOOL_SPECS`,
+   `run_tool`, response dataclasses, the `ChatClient` protocol) live in
+   `app/chat.py`. Implementations:
+   - `AnthropicChatClient` (`app/anthropic_chat_client.py`): Claude
+     **Messages API** via `client.beta.messages.create` (beta for server-side
+     refusal fallbacks). Thinking blocks must be stored and passed back
+     unchanged, and the history must stay append-only (no edits to earlier
+     messages, the system prompt, or the tool list).
+   - `OpenAIChatClient` (`app/openai_chat_client.py`): **OpenAI Responses
+     API** (`client.responses.create`, not Chat Completions).
+1. `SpotifyClient` (`app/spotify_client.py`) wraps `spotipy` and handles
    pagination; it returns plain dicts/lists that are stringified into tool
    outputs.
 
 State handling:
 
-- Conversation histories (OpenAI Responses input format) are JSON-serialized
-  into a SQLite `conversation` table (`app/database.py`, `app/schema.sql`),
-  keyed by a UUID stored in the Flask session.
+- Conversation histories (in the provider's own message format) are
+  JSON-serialized into a SQLite `conversation` table (`app/database.py`,
+  `app/schema.sql`), keyed by a UUID stored in the Flask session. The session
+  also records the provider; switching providers starts a new conversation.
+  `visible_messages()` extracts the displayable text from either format.
 - Spotify OAuth tokens are cached per session in `.spotify_cache/<uuid>`
   files; the OAuth flow lives in the `/spotify/login` and `/spotify/callback`
   routes.
@@ -86,10 +103,10 @@ Always use this order, both for features and bug fixes:
 
 1. If the code and application structure within which to implement a change
    already exist, add a test first, and verify that it fails.
-2. Implement the fix.
-3. Format the code.
-4. Verify that the test passes.
-5. Create a local commit but NEVER push anything yourself.
+1. Implement the fix.
+1. Format the code.
+1. Verify that the test passes.
+1. Create a local commit but NEVER push anything yourself.
 
 ## Git and Commit Conventions
 
@@ -109,5 +126,7 @@ instruction memorized in this file — update AGENTS.md accordingly.
 ## References
 
 - Flask API reference: <https://flask.palletsprojects.com/en/stable/api/>
+- Claude tool use (Messages API):
+  <https://platform.claude.com/docs/en/agents-and-tools/tool-use/overview>
 - OpenAI function calling (Responses API):
   <https://platform.openai.com/docs/guides/function-calling>
