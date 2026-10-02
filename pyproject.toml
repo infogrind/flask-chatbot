@@ -5,6 +5,7 @@ description = "Chatbot that curates Spotify playlists using the OpenAI API"
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
+    "anthropic>=1.11.0",
     "flask>=3.1.1",
     "openai",
     "python-dotenv>=1.1.1",

@@ -12,19 +12,15 @@ from openai.types.responses import (
     ResponseOutputText,
 )
 
-from app.chat_client import (
-    MAX_TOOL_ROUNDS,
-    ChatClient,
-    ChatResponse,
-    ToolCallResponse,
-)
+from app.chat import MAX_TOOL_ROUNDS, ChatResponse, ToolCallResponse
+from app.openai_chat_client import OpenAIChatClient
 
 
 @pytest.fixture
-def chat_client() -> Iterator[ChatClient]:
+def chat_client() -> Iterator[OpenAIChatClient]:
     """Fixture to provide a ChatClient instance with a mocked OpenAI client."""
-    with patch("app.chat_client.OpenAI"):
-        client = ChatClient("test_api_key")
+    with patch("app.openai_chat_client.OpenAI"):
+        client = OpenAIChatClient("test_api_key")
         client.client.responses.create = MagicMock()
         yield client
 
@@ -32,7 +28,7 @@ def chat_client() -> Iterator[ChatClient]:
 def test_chat_client_initialization() -> None:
     """Test that the ChatClient initializes correctly."""
     # Act
-    client = ChatClient("test_api_key")
+    client = OpenAIChatClient("test_api_key")
 
     # Assert
     assert client.client is not None
@@ -42,13 +38,11 @@ def test_chat_client_initialization() -> None:
 def test_chat_client_initialization_no_api_key() -> None:
     """Test that the ChatClient raises an error if the API key is not set."""
     # Act & Assert
-    with pytest.raises(
-        ValueError, match="OPENAI_API_KEY environment variable not set."
-    ):
-        ChatClient("")
+    with pytest.raises(ValueError, match="No OpenAI API key"):
+        OpenAIChatClient("")
 
 
-def test_get_chat_completion_no_tool_calls(chat_client: ChatClient) -> None:
+def test_get_chat_completion_no_tool_calls(chat_client: OpenAIChatClient) -> None:
     """Test a simple chat completion with no tool calls."""
     # Arrange
     mock_response = MagicMock(spec=Response)
@@ -81,7 +75,7 @@ def test_get_chat_completion_no_tool_calls(chat_client: ChatClient) -> None:
     chat_client.client.responses.create.assert_called_once()
 
 
-def test_get_chat_completion_with_tool_call(chat_client: ChatClient) -> None:
+def test_get_chat_completion_with_tool_call(chat_client: OpenAIChatClient) -> None:
     """Test a chat completion that involves a tool call."""
     # Arrange
     # First API call returns a tool call
@@ -139,7 +133,7 @@ def test_get_chat_completion_with_tool_call(chat_client: ChatClient) -> None:
     mock_spotify_client.get_user_playlists.assert_called_once()
 
 
-def test_get_chat_completion_api_error(chat_client: ChatClient) -> None:
+def test_get_chat_completion_api_error(chat_client: OpenAIChatClient) -> None:
     """Test how the chat client handles an API error."""
     # Arrange
     chat_client.client.responses.create.side_effect = Exception("API connection failed")
@@ -160,7 +154,7 @@ def test_get_chat_completion_api_error(chat_client: ChatClient) -> None:
     chat_client.client.responses.create.assert_called_once()
 
 
-def test_get_chat_completion_empty_output(chat_client: ChatClient) -> None:
+def test_get_chat_completion_empty_output(chat_client: OpenAIChatClient) -> None:
     """An empty model output is reported to the user instead of being dropped."""
     # Arrange
     mock_response = MagicMock(spec=Response)
@@ -180,7 +174,7 @@ def test_get_chat_completion_empty_output(chat_client: ChatClient) -> None:
     assert results[0].response
 
 
-def test_create_playlist_tool_call(chat_client: ChatClient) -> None:
+def test_create_playlist_tool_call(chat_client: OpenAIChatClient) -> None:
     """Test a chat completion that involves a tool call to create a playlist."""
     # Arrange
     # First API call returns a tool call
@@ -241,7 +235,7 @@ def test_create_playlist_tool_call(chat_client: ChatClient) -> None:
 
 
 def test_concurrent_completions_use_their_own_spotify_client(
-    chat_client: ChatClient,
+    chat_client: OpenAIChatClient,
 ) -> None:
     """Interleaved requests must not run tool calls against another user's account."""
     # Arrange
@@ -309,7 +303,7 @@ def _text_response(text: str) -> MagicMock:
     return response
 
 
-def test_failing_tool_call_is_reported_to_model(chat_client: ChatClient) -> None:
+def test_failing_tool_call_is_reported_to_model(chat_client: OpenAIChatClient) -> None:
     """A Spotify error is passed back to the model instead of aborting the stream."""
     # Arrange
     chat_client.client.responses.create.side_effect = [
@@ -331,7 +325,7 @@ def test_failing_tool_call_is_reported_to_model(chat_client: ChatClient) -> None
     assert "token expired" in call_output["output"]
 
 
-def test_unknown_tool_is_reported_to_model(chat_client: ChatClient) -> None:
+def test_unknown_tool_is_reported_to_model(chat_client: OpenAIChatClient) -> None:
     # Arrange
     chat_client.client.responses.create.side_effect = [
         _tool_call_response("no_such_tool"),
@@ -346,7 +340,7 @@ def test_unknown_tool_is_reported_to_model(chat_client: ChatClient) -> None:
     assert "no_such_tool" in call_output["output"]
 
 
-def test_agent_loop_is_bounded(chat_client: ChatClient) -> None:
+def test_agent_loop_is_bounded(chat_client: OpenAIChatClient) -> None:
     """A model that never stops calling tools must not loop forever."""
     # Arrange
     chat_client.client.responses.create.side_effect = lambda **_: _tool_call_response()
@@ -359,7 +353,9 @@ def test_agent_loop_is_bounded(chat_client: ChatClient) -> None:
     assert isinstance(results[-1], ChatResponse)
 
 
-def test_unknown_output_types_are_not_shown_to_user(chat_client: ChatClient) -> None:
+def test_unknown_output_types_are_not_shown_to_user(
+    chat_client: OpenAIChatClient,
+) -> None:
     # Arrange
     response = _text_response("Hi")
     response.output.append(MagicMock())

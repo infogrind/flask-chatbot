@@ -1,0 +1,32 @@
+# LLM provider configuration for flask-chatbot.
+#
+# Copy to $XDG_CONFIG_HOME/flask-chatbot/config.toml (by default
+# ~/.config/flask-chatbot/config.toml) and make it private, as it holds API keys:
+#
+#   mkdir -p ~/.config/flask-chatbot
+#   cp config.example.toml ~/.config/flask-chatbot/config.toml
+#   chmod 600 ~/.config/flask-chatbot/config.toml
+#
+# Restart the app after changing it. Switching the provider starts a new
+# conversation, as the history formats of the two APIs are incompatible.
+
+# Which API to use: "anthropic" or "openai". Defaults to "openai".
+provider = "anthropic"
+
+[anthropic]
+# Falls back to the ANTHROPIC_API_KEY env var, then to an `ant auth login` profile.
+api_key = "sk-ant-..."
+# Optional, defaults to "claude-opus-5-5".
+model = "claude-opus-5-5"
+# Optional: how much Claude thinks before answering, which also drives cost and
+# latency. One of "low", "medium", "high", "xhigh", "max". Defaults to "medium".
+effort = "medium"
+# Optional: if a safety classifier declines a request, retry it on a fallback
+# model chosen by Anthropic instead of showing a refusal. Defaults to true.
+refusal_fallback = true
+
+[openai]
+# Falls back to the OPENAI_API_KEY env var.
+api_key = "sk-..."
+# Optional, defaults to "gpt-4o-mini".
+model = "gpt-4o-mini"

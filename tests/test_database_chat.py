@@ -3,7 +3,7 @@ from unittest.mock import MagicMock, patch
 
 from flask import Flask
 
-from app.chat_client import ChatResponse
+from app.chat import ChatResponse
 from app.database import get_db
 
 

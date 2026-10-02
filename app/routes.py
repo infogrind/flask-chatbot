@@ -1,6 +1,7 @@
 import json
 import logging
 import uuid
+from typing import Any
 from collections.abc import Iterator
 
 from flask import (
@@ -15,17 +16,19 @@ from flask import (
     stream_with_context,
     url_for,
 )
-from openai.types.responses import ResponseInputParam
 from werkzeug.wrappers import Response as BaseResponse
 from spotipy.oauth2 import CacheFileHandler, SpotifyOAuth
 
-from app.chat_client import ChatClient, ChatResponse, ToolCallResponse
+from app.anthropic_chat_client import AnthropicChatClient
+from app.chat import ChatClient, ChatResponse, ToolCallResponse, visible_messages
 from app.database import (
     create_conversation,
     delete_conversation,
     get_conversation,
     update_conversation,
 )
+from app.llm_settings import LLMSettings
+from app.openai_chat_client import OpenAIChatClient
 from app.spotify_client import SpotifyClient
 
 logger = logging.getLogger(__name__)
@@ -36,15 +39,28 @@ SCOPE = "playlist-read-private user-library-read playlist-modify-public"
 SPOTIFY_CACHE_DIR = ".spotify_cache"
 
 
-def get_chat_client() -> ChatClient:
-    """Returns the app's `ChatClient`, created on first use.
+def create_chat_client(settings: LLMSettings) -> ChatClient:
+    match settings.provider:
+        case "anthropic":
+            return AnthropicChatClient(
+                settings.api_key,
+                settings.model,
+                settings.effort,
+                settings.refusal_fallback,
+            )
+        case "openai":
+            return OpenAIChatClient(settings.api_key or "", settings.model)
 
-    Created lazily so that importing this module (e.g. for `flask init-db`) does
-    not require `OPENAI_API_KEY`.
+
+def get_chat_client() -> ChatClient:
+    """Returns the app's `ChatClient` for the configured provider.
+
+    Created on first use, so that importing this module (e.g. for
+    `flask init-db`) does not require an API key.
     """
     if "chat_client" not in current_app.extensions:
-        current_app.extensions["chat_client"] = ChatClient(
-            current_app.config["OPENAI_API_KEY"]
+        current_app.extensions["chat_client"] = create_chat_client(
+            current_app.config["LLM"]
         )
     return current_app.extensions["chat_client"]
 
@@ -62,12 +78,18 @@ def get_spotify_auth_manager() -> SpotifyOAuth:
     )
 
 
-def load_or_create_conversation() -> tuple[str, ResponseInputParam]:
+def load_or_create_conversation() -> tuple[str, list[Any]]:
     """Returns the session's conversation, creating it if it doesn't exist.
 
-    Handles both a missing session entry and a stale ID whose database row is
-    gone (e.g. after `flask init-db`).
+    Handles a missing session entry, a stale ID whose database row is gone (e.g.
+    after `flask init-db`), and a conversation started with another LLM provider,
+    whose history format the current provider can't read.
     """
+    provider = current_app.config["LLM"].provider
+    # Sessions from before provider selection existed only used OpenAI
+    if session.get("conversation_provider", "openai") != provider:
+        session.pop("conversation_id", None)
+    session["conversation_provider"] = provider
     conversation_id = session.setdefault("conversation_id", str(uuid.uuid4()))
     conversation_history = get_conversation(conversation_id)
     if conversation_history is None:
@@ -87,7 +109,7 @@ def index() -> str:
 
     return render_template(
         "index.html",
-        conversation=conversation_history,
+        conversation=visible_messages(conversation_history),
         is_spotify_connected=is_spotify_connected,
     )
 

@@ -5,6 +5,7 @@ from typing import Any
 
 from flask import Flask
 
+from app.llm_settings import load_llm_settings
 from config import Config
 
 
@@ -30,6 +31,9 @@ def create_app(test_config: Mapping[str, Any] | None = None) -> Flask:
     logging.basicConfig(
         level=logging.INFO, format="%(asctime)s %(levelname)s [%(name)s]: %(message)s"
     )
+
+    if "LLM" not in app.config:
+        app.config["LLM"] = load_llm_settings()
 
     from . import database
 
